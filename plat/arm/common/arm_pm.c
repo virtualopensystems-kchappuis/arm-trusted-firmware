@@ -33,34 +33,6 @@
 #include <errno.h>
 #include <psci.h>
 
-
-/*******************************************************************************
- * ARM standard platform utility function which is used to determine if any
- * platform actions should be performed for the specified affinity instance
- * given its state. Nothing needs to be done if the 'state' is not off or if
- * this is not the highest affinity level which will enter the 'state'.
- ******************************************************************************/
-int32_t arm_do_affinst_actions(unsigned int afflvl, unsigned int state)
-{
-	unsigned int max_phys_off_afflvl;
-
-	assert(afflvl <= MPIDR_AFFLVL1);
-
-	if (state != PSCI_STATE_OFF)
-		return -EAGAIN;
-
-	/*
-	 * Find the highest affinity level which will be suspended and postpone
-	 * all the platform specific actions until that level is hit.
-	 */
-	max_phys_off_afflvl = psci_get_max_phys_off_afflvl();
-	assert(max_phys_off_afflvl != PSCI_INVALID_DATA);
-	if (afflvl != max_phys_off_afflvl)
-		return -EAGAIN;
-
-	return 0;
-}
-
 /*******************************************************************************
  * ARM standard platform handler called to check the validity of the power state
  * parameter.

@@ -1186,27 +1186,23 @@ passed argument. The generic code expects the handler to succeed.
 
 Perform the platform specific setup to power on an affinity instance, specified
 by the `MPIDR` (first argument) and `affinity level` (third argument). The
-`state` (fourth argument) contains the current state of that affinity instance
-(ON or OFF). This is useful to determine whether any action must be taken. For
-example, while powering on a CPU, the cluster that contains this CPU might
-already be in the ON state. The platform decides what actions must be taken to
-transition from the current state to the target state (indicated by the power
-management operation). The generic code expects the platform to return
-E_SUCCESS on success or E_INTERN_FAIL for any failure.
+platform decides what actions must be taken to transition from the current
+state to the target state (indicated by the power management operation).
+The generic code expects the platform to return E_SUCCESS on success or
+E_INTERN_FAIL for any failure.
 
 #### plat_pm_ops.affinst_off()
 
 Perform the platform specific setup to power off an affinity instance of the
 calling CPU. It is called by the PSCI `CPU_OFF` API implementation.
 
-The `affinity level` (first argument) and `state` (second argument) have
-a similar meaning as described in the `affinst_on()` operation. They are
-used to identify the affinity instance on which the call is made and its
-current state. This gives the platform port an indication of the
-state transition it must make to perform the requested action. For example, if
-the calling CPU is the last powered on CPU in the cluster, after powering down
-affinity level 0 (CPU), the platform port should power down affinity level 1
-(the cluster) as well. The generic code expects the handler to succeed.
+The `affinity level` (first argument) is used to identify the highest affinity
+instance that needs to be powered down. This gives the platform port an
+indication of the state transition it must make to perform the requested
+action. For example, if the calling CPU is the last powered on CPU in the
+cluster, after powering down affinity level 0 (CPU), the platform port
+should power down affinity level 1 (the cluster) as well. The generic code
+expects the handler to succeed.
 
 #### plat_pm_ops.affinst_suspend()
 
@@ -1214,13 +1210,13 @@ Perform the platform specific setup to power off an affinity instance of the
 calling CPU. It is called by the PSCI `CPU_SUSPEND` API
 implementation.
 
-The `affinity level` (second argument) and `state` (third argument) have a
-similar meaning as described in the `affinst_on()` operation. They are used to
-identify the affinity instance on which the call is made and its current state.
-This gives the platform port an indication of the state transition it must
-make to perform the requested action. For example, if the calling CPU is the
-last powered on CPU in the cluster, after powering down affinity level 0 (CPU),
-the platform port should power down affinity level 1 (the cluster) as well.
+The `affinity level` (second argument) have a similar meaning as described in
+the `affinst_off()` operation. It is used to identify the highest affinity
+instance that needs to be suspended. This gives the platform port an indication
+of the state transition it must make to perform the requested action. For
+example, if the calling CPU is the last powered on CPU in the cluster, after
+powering down affinity level 0 (CPU), the platform port should power down
+affinity level 1 (the cluster) as well.
 
 The difference between turning an affinity instance off versus suspending it
 is that in the former case, the affinity instance is expected to re-initialize
@@ -1237,9 +1233,8 @@ It performs the platform-specific setup required to initialize enough state for
 this CPU to enter the normal world and also provide secure runtime firmware
 services.
 
-The `affinity level` (first argument) and `state` (second argument) have a
-similar meaning as described in the previous operations. The generic code
-expects the handler to succeed.
+The `affinity level` (first argument) has a similar meaning as described in the
+previous operations. The generic code expects the handler to succeed.
 
 #### plat_pm_ops.affinst_on_suspend()
 
@@ -1250,9 +1245,8 @@ event, for example a timer interrupt that was programmed by the CPU during the
 restore the saved state for this CPU to resume execution in the normal world
 and also provide secure runtime firmware services.
 
-The `affinity level` (first argument) and `state` (second argument) have a
-similar meaning as described in the previous operations. The generic code
-expects the platform to succeed.
+The `affinity level` (first argument) has a similar meaning as described in
+the previous operations. The generic code expects the platform to succeed.
 
 #### plat_pm_ops.validate_power_state()
 

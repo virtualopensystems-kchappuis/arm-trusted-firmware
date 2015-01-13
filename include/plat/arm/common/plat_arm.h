@@ -159,7 +159,6 @@ void arm_io_setup(void);
 void arm_tzc_setup(void);
 
 /* PM utility functions */
-int32_t arm_do_affinst_actions(unsigned int afflvl, unsigned int state);
 int arm_validate_power_state(unsigned int power_state);
 
 /* BL1 utility functions */

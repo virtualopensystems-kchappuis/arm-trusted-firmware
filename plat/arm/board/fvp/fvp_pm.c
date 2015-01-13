@@ -111,18 +111,16 @@ void fvp_affinst_standby(unsigned int power_state)
  ******************************************************************************/
 int fvp_affinst_on(unsigned long mpidr,
 		   unsigned long sec_entrypoint,
-		   unsigned int afflvl,
-		   unsigned int state)
+		   unsigned int afflvl)
 {
 	int rc = PSCI_E_SUCCESS;
 	unsigned int psysr;
 
 	/*
 	 * It's possible to turn on only affinity level 0 i.e. a cpu
-	 * on the FVP. Ignore any other affinity level.
+	 * on the FVP.
 	 */
-	if (afflvl != MPIDR_AFFLVL0)
-		return rc;
+	assert(afflvl == MPIDR_AFFLVL0);
 
 	/*
 	 * Ensure that we do not cancel an inflight power off request
@@ -142,22 +140,11 @@ int fvp_affinst_on(unsigned long mpidr,
 }
 
 /*******************************************************************************
- * FVP handler called when an affinity instance is about to be turned off. The
- * level and mpidr determine the affinity instance. The 'state' arg. allows the
- * platform to decide whether the cluster is being turned off and take apt
- * actions.
- *
- * CAUTION: There is no guarantee that caches will remain turned on across calls
- * to this function as each affinity level is dealt with. So do not write & read
- * global variables across calls. It will be wise to do flush a write to the
- * global to prevent unpredictable results.
+ * FVP handler called when an affinity instance is about to be turned off.
  ******************************************************************************/
-void fvp_affinst_off(unsigned int afflvl,
-		    unsigned int state)
+void fvp_affinst_off(unsigned int afflvl)
 {
-	/* Determine if any platform actions need to be executed */
-	if (arm_do_affinst_actions(afflvl, state) == -EAGAIN)
-		return;
+	assert(afflvl <= MPIDR_AFFLVL1);
 
 	/*
 	 * If execution reaches this stage then this affinity level will be
@@ -172,25 +159,14 @@ void fvp_affinst_off(unsigned int afflvl,
 }
 
 /*******************************************************************************
- * FVP handler called when an affinity instance is about to be suspended. The
- * level and mpidr determine the affinity instance. The 'state' arg. allows the
- * platform to decide whether the cluster is being turned off and take apt
- * actions.
- *
- * CAUTION: There is no guarantee that caches will remain turned on across calls
- * to this function as each affinity level is dealt with. So do not write & read
- * global variables across calls. It will be wise to do flush a write to the
- * global to prevent unpredictable results.
+ * FVP handler called when an affinity instance is about to be suspended.
  ******************************************************************************/
 void fvp_affinst_suspend(unsigned long sec_entrypoint,
-			unsigned int afflvl,
-			unsigned int state)
+			unsigned int afflvl)
 {
 	unsigned long mpidr;
 
-	/* Determine if any platform actions need to be executed. */
-	if (arm_do_affinst_actions(afflvl, state) == -EAGAIN)
-		return;
+	assert(afflvl <= MPIDR_AFFLVL1);
 
 	/* Get the mpidr for this cpu */
 	mpidr = read_mpidr_el1();
@@ -211,19 +187,13 @@ void fvp_affinst_suspend(unsigned long sec_entrypoint,
 
 /*******************************************************************************
  * FVP handler called when an affinity instance has just been powered on after
- * being turned off earlier. The level and mpidr determine the affinity
- * instance. The 'state' arg. allows the platform to decide whether the cluster
- * was turned off prior to wakeup and do what's necessary to setup it up
- * correctly.
+ * being turned off earlier.
  ******************************************************************************/
-void fvp_affinst_on_finish(unsigned int afflvl,
-			  unsigned int state)
+void fvp_affinst_on_finish(unsigned int afflvl)
 {
 	unsigned long mpidr;
 
-	/* Determine if any platform actions need to be executed. */
-	if (arm_do_affinst_actions(afflvl, state) == -EAGAIN)
-		return;
+	assert(afflvl <= MPIDR_AFFLVL1);
 
 	/* Get the mpidr for this cpu */
 	mpidr = read_mpidr_el1();
@@ -263,15 +233,13 @@ void fvp_affinst_on_finish(unsigned int afflvl,
 
 /*******************************************************************************
  * FVP handler called when an affinity instance has just been powered on after
- * having been suspended earlier. The level and mpidr determine the affinity
- * instance.
+ * having been suspended earlier.
  * TODO: At the moment we reuse the on finisher and reinitialize the secure
  * context. Need to implement a separate suspend finisher.
  ******************************************************************************/
-void fvp_affinst_suspend_finish(unsigned int afflvl,
-			       unsigned int state)
+void fvp_affinst_suspend_finish(unsigned int afflvl)
 {
-	fvp_affinst_on_finish(afflvl, state);
+	fvp_affinst_on_finish(afflvl);
 }
 
 /*******************************************************************************
