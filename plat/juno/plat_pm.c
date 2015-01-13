@@ -57,34 +57,6 @@ static void juno_program_mailbox(uint64_t mpidr, uint64_t address)
 }
 
 /*******************************************************************************
- * Private Juno function which is used to determine if any platform actions
- * should be performed for the specified affinity instance given its
- * state. Nothing needs to be done if the 'state' is not off or if this is not
- * the highest affinity level which will enter the 'state'.
- ******************************************************************************/
-static int32_t juno_do_plat_actions(uint32_t afflvl, uint32_t state)
-{
-	uint32_t max_phys_off_afflvl;
-
-	assert(afflvl <= MPIDR_AFFLVL1);
-
-	if (state != PSCI_STATE_OFF)
-		return -EAGAIN;
-
-	/*
-	 * Find the highest affinity level which will be suspended and postpone
-	 * all the platform specific actions until that level is hit.
-	 */
-	max_phys_off_afflvl = psci_get_max_phys_off_afflvl();
-	assert(max_phys_off_afflvl != PSCI_INVALID_DATA);
-	assert(psci_get_suspend_afflvl() >= max_phys_off_afflvl);
-	if (afflvl != max_phys_off_afflvl)
-		return -EAGAIN;
-
-	return 0;
-}
-
-/*******************************************************************************
  * Juno handler called to check the validity of the power state parameter.
  ******************************************************************************/
 int32_t juno_validate_power_state(unsigned int power_state)
@@ -115,15 +87,13 @@ int32_t juno_validate_power_state(unsigned int power_state)
  ******************************************************************************/
 int32_t juno_affinst_on(uint64_t mpidr,
 			uint64_t sec_entrypoint,
-			uint32_t afflvl,
-			uint32_t state)
+			uint32_t afflvl)
 {
 	/*
 	 * SCP takes care of powering up higher affinity levels so we
 	 * only need to care about level 0
 	 */
-	if (afflvl != MPIDR_AFFLVL0)
-		return PSCI_E_SUCCESS;
+	assert(afflvl == MPIDR_AFFLVL0);
 
 	/*
 	 * Setup mailbox with address for CPU entrypoint when it next powers up
@@ -138,18 +108,13 @@ int32_t juno_affinst_on(uint64_t mpidr,
 
 /*******************************************************************************
  * Juno handler called when an affinity instance has just been powered on after
- * being turned off earlier. The level and mpidr determine the affinity
- * instance. The 'state' arg. allows the platform to decide whether the cluster
- * was turned off prior to wakeup and do what's necessary to setup it up
- * correctly.
+ * being turned off earlier.
  ******************************************************************************/
-void juno_affinst_on_finish(uint32_t afflvl, uint32_t state)
+void juno_affinst_on_finish(uint32_t afflvl)
 {
 	unsigned long mpidr;
 
-	/* Determine if any platform actions need to be executed. */
-	if (juno_do_plat_actions(afflvl, state) == -EAGAIN)
-		return;
+	assert(afflvl <= MPIDR_AFFLVL1);
 
 	/* Get the mpidr for this cpu */
 	mpidr = read_mpidr_el1();
@@ -201,44 +166,22 @@ static void juno_power_down_common(uint32_t afflvl)
 }
 
 /*******************************************************************************
- * Handler called when an affinity instance is about to be turned off. The
- * level and mpidr determine the affinity instance. The 'state' arg. allows the
- * platform to decide whether the cluster is being turned off and take
- * appropriate actions.
- *
- * CAUTION: There is no guarantee that caches will remain turned on across calls
- * to this function as each affinity level is dealt with. So do not write & read
- * global variables across calls. It will be wise to do flush a write to the
- * global to prevent unpredictable results.
+ * Handler called when an affinity instance is about to be turned off.
  ******************************************************************************/
-static void juno_affinst_off(uint32_t afflvl, uint32_t state)
+static void juno_affinst_off(uint32_t afflvl)
 {
-	/* Determine if any platform actions need to be executed */
-	if (juno_do_plat_actions(afflvl, state) == -EAGAIN)
-		return;
+	assert(afflvl <= MPIDR_AFFLVL1);
 
 	juno_power_down_common(afflvl);
 }
 
 /*******************************************************************************
- * Handler called when an affinity instance is about to be suspended. The
- * level and mpidr determine the affinity instance. The 'state' arg. allows the
- * platform to decide whether the cluster is being turned off and take apt
- * actions. The 'sec_entrypoint' determines the address in BL3-1 from where
- * execution should resume.
- *
- * CAUTION: There is no guarantee that caches will remain turned on across calls
- * to this function as each affinity level is dealt with. So do not write & read
- * global variables across calls. It will be wise to do flush a write to the
- * global to prevent unpredictable results.
+ * Handler called when an affinity instance is about to be suspended.
  ******************************************************************************/
 static void juno_affinst_suspend(uint64_t sec_entrypoint,
-				    uint32_t afflvl,
-				    uint32_t state)
+				    uint32_t afflvl)
 {
-	/* Determine if any platform actions need to be executed */
-	if (juno_do_plat_actions(afflvl, state) == -EAGAIN)
-		return;
+	assert(afflvl <= MPIDR_AFFLVL1);
 
 	/*
 	 * Setup mailbox with address for CPU entrypoint when it next powers up.
@@ -250,15 +193,13 @@ static void juno_affinst_suspend(uint64_t sec_entrypoint,
 
 /*******************************************************************************
  * Juno handler called when an affinity instance has just been powered on after
- * having been suspended earlier. The level and mpidr determine the affinity
- * instance.
+ * having been suspended earlier.
  * TODO: At the moment we reuse the on finisher and reinitialize the secure
  * context. Need to implement a separate suspend finisher.
  ******************************************************************************/
-static void juno_affinst_suspend_finish(uint32_t afflvl,
-					   uint32_t state)
+static void juno_affinst_suspend_finish(uint32_t afflvl)
 {
-	juno_affinst_on_finish(afflvl, state);
+	juno_affinst_on_finish(afflvl);
 }
 
 /*******************************************************************************
