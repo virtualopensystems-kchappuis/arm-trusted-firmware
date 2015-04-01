@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2014-2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -97,15 +97,11 @@
 #endif /* TRUSTED_BOARD_BOOT */
 
 #define PLATFORM_CACHE_LINE_SIZE	64
-#define PLATFORM_CLUSTER_COUNT		2ull
-#define PLATFORM_CLUSTER0_CORE_COUNT	4
-#define PLATFORM_CLUSTER1_CORE_COUNT	4
-#define PLATFORM_CORE_COUNT		(PLATFORM_CLUSTER1_CORE_COUNT + \
-						PLATFORM_CLUSTER0_CORE_COUNT)
-#define PLATFORM_MAX_CPUS_PER_CLUSTER	4
-#define PLATFORM_NUM_AFFS		(PLATFORM_CLUSTER_COUNT + \
-					 PLATFORM_CORE_COUNT)
-#define PLATFORM_MAX_AFFLVL		MPIDR_AFFLVL1
+#define PLATFORM_CORE_COUNT		(FVP_CLUSTER1_CORE_COUNT + \
+					FVP_CLUSTER0_CORE_COUNT)
+#define PLAT_NUM_PWR_DOMAINS		(FVP_CLUSTER_COUNT + \
+					PLATFORM_CORE_COUNT)
+#define PLAT_MAX_PWR_LVL		FVP_PWR_LVL1
 #define MAX_IO_DEVICES			3
 #define MAX_IO_HANDLES			4
 

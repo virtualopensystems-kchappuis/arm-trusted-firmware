@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2014-2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -149,6 +149,20 @@
 #define FUNC_SCC_CFG		0x06
 #define FUNC_SHUTDOWN		0x08
 #define FUNC_REBOOT		0x09
+
+/* FVP Topology information */
+#define FVP_CLUSTER_COUNT		2ull
+#define FVP_CLUSTER0_CORE_COUNT		4
+#define FVP_CLUSTER1_CORE_COUNT		4
+
+#define FVP_MAX_CPUS_PER_CLUSTER	4
+
+/*
+ * Macros mapping the MPIDR Affinity levels to FVP Power levels. The FVP
+ * power levels have a 1:1 mapping with the MPIDR affinity levels.
+ */
+#define FVP_PWR_LVL0		MPIDR_AFFLVL0
+#define FVP_PWR_LVL1		MPIDR_AFFLVL1
 
 /*
  * The number of regions like RO(code), coherent and data required by

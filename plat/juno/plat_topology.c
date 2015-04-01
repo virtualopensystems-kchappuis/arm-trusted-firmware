@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2014-2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -31,21 +31,25 @@
 #include <platform_def.h>
 #include <psci.h>
 
-unsigned int plat_get_aff_count(unsigned int aff_lvl, unsigned long mpidr)
+unsigned int plat_get_pwr_domain_count(unsigned int pwr_lvl,
+						unsigned long mpidr)
 {
-	/* Report 1 (absent) instance at levels higher that the cluster level */
-	if (aff_lvl > MPIDR_AFFLVL1)
+	/* Report 1 (absent) power domain  at levels higher that the
+	   cluster level */
+	if (pwr_lvl > JUNO_PWR_LVL1)
 		return 1;
 
-	if (aff_lvl == MPIDR_AFFLVL1)
+	if (pwr_lvl == JUNO_PWR_LVL1)
 		return 2; /* We have two clusters */
 
 	return mpidr & 0x100 ? 4 : 2; /* 4 cpus in cluster 1, 2 in cluster 0 */
 }
 
-unsigned int plat_get_aff_state(unsigned int aff_lvl, unsigned long mpidr)
+unsigned int plat_get_pwr_domain_state(unsigned int pwr_lvl,
+		unsigned long mpidr)
 {
-	return aff_lvl <= MPIDR_AFFLVL1 ? PSCI_AFF_PRESENT : PSCI_AFF_ABSENT;
+	return pwr_lvl <= JUNO_PWR_LVL1 ? PSCI_PWR_DOMAIN_PRESENT :
+						PSCI_PWR_DOMAIN_ABSENT;
 }
 
 int plat_setup_topology(void)

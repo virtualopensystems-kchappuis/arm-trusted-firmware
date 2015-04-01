@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2014-2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -152,6 +152,18 @@
 #define SYS_LED_SS_SHIFT		0x0
 #define SYS_LED_EL_SHIFT		0x1
 #define SYS_LED_EC_SHIFT		0x3
+
+/* JUNO Topology information */
+#define JUNO_CLUSTER_COUNT		2
+#define JUNO_CLUSTER0_CORE_COUNT	2
+#define JUNO_CLUSTER1_CORE_COUNT	4
+
+/*
+ * Macros mapping the MPIDR Affinity level to JUNO Power levels. The JUNO
+ * power levels have a 1:1 mapping with the MPIDR affinity levels.
+ */
+#define JUNO_PWR_LVL0		MPIDR_AFFLVL0
+#define JUNO_PWR_LVL1		MPIDR_AFFLVL1
 
 /*
  * The number of regions like RO(code), coherent and data required by

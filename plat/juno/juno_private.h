@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2014-2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -158,8 +158,6 @@ void plat_cci_init(void);
 
 /* Declarations for plat_topology.c */
 int plat_setup_topology(void);
-unsigned int plat_get_aff_count(unsigned int aff_lvl, unsigned long mpidr);
-unsigned int plat_get_aff_state(unsigned int aff_lvl, unsigned long mpidr);
 
 /* Declarations for plat_io_storage.c */
 void io_setup(void);

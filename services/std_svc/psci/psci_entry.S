@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -33,8 +33,8 @@
 #include <psci.h>
 #include <xlat_tables.h>
 
-	.globl	psci_aff_on_finish_entry
-	.globl	psci_aff_suspend_finish_entry
+	.globl	psci_cpu_on_finish_entry
+	.globl	psci_cpu_suspend_finish_entry
 	.globl	psci_power_down_wfi
 
 	/* -----------------------------------------------------
@@ -44,14 +44,14 @@
 	 * the handlers (chosen depending upon original state).
 	 * -----------------------------------------------------
 	 */
-func psci_aff_on_finish_entry
-	adr	x23, psci_afflvl_on_finisher
-	b	psci_aff_common_finish_entry
+func psci_cpu_on_finish_entry
+	adr	x23, psci_cpu_on_finish
+	b	psci_power_up_entry
 
-psci_aff_suspend_finish_entry:
-	adr	x23, psci_afflvl_suspend_finisher
+psci_cpu_suspend_finish_entry:
+	adr	x23, psci_cpu_suspend_finish
 
-psci_aff_common_finish_entry:
+psci_power_up_entry:
 #if !RESET_TO_BL31
 	/* ---------------------------------------------
 	 * Perform any processor specific actions which
@@ -137,16 +137,16 @@ psci_aff_common_finish_entry:
 	bl	bl31_plat_enable_mmu
 
 	/* ---------------------------------------------
-	 * Call the finishers starting from affinity
+	 * Call the finishers starting from power
 	 * level 0.
 	 * ---------------------------------------------
 	 */
-	bl	get_power_on_target_afflvl
+	bl	get_power_on_target_pwrlvl
 	mov	x1, x23
-	bl	psci_afflvl_power_on_finish
+	bl	psci_power_up_finish
 
 	b	el3_exit
-endfunc psci_aff_on_finish_entry
+endfunc psci_cpu_on_finish_entry
 
 	/* --------------------------------------------
 	 * This function is called to indicate to the
