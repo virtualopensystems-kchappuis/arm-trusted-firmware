@@ -61,14 +61,12 @@ static void css_program_mailbox(uint64_t mpidr, uint64_t address)
  * level and mpidr determine the affinity instance.
  ******************************************************************************/
 int32_t css_pwr_domain_on(uint64_t mpidr,
-			uint64_t sec_entrypoint,
-			uint32_t pwrlvl)
+			uint64_t sec_entrypoint)
 {
 	/*
 	 * SCP takes care of powering up parent power domains so we
 	 * only need to care about level 0
 	 */
-	assert(pwrlvl == ARM_PWR_LVL0);
 
 	/*
 	 * Setup mailbox with address for CPU entrypoint when it next powers up
@@ -83,13 +81,15 @@ int32_t css_pwr_domain_on(uint64_t mpidr,
 
 /*******************************************************************************
  * Handler called when a power level has just been powered on after
- * being turned off earlier.
+ * being turned off earlier. The target_state encodes the low power state that
+ * each level has woken up from.
  ******************************************************************************/
-void css_pwr_domain_on_finish(uint32_t pwrlvl)
+void css_pwr_domain_on_finish(psci_power_state_t *target_state)
 {
 	unsigned long mpidr;
 
-	assert(pwrlvl <= ARM_PWR_LVL1);
+	assert(target_state->pwr_domain_state[ARM_PWR_LVL0] ==
+						ARM_LOCAL_STATE_OFF);
 
 	/* Get the mpidr for this cpu */
 	mpidr = read_mpidr_el1();
@@ -98,7 +98,8 @@ void css_pwr_domain_on_finish(uint32_t pwrlvl)
 	 * Perform the common cluster specific operations i.e enable coherency
 	 * if this cluster was off.
 	 */
-	if (pwrlvl != ARM_PWR_LVL0)
+	if (target_state->pwr_domain_state[ARM_PWR_LVL1] ==
+						ARM_LOCAL_STATE_OFF)
 		cci_enable_snoop_dvm_reqs(MPIDR_AFFLVL1_VAL(mpidr));
 
 	/* Enable the gic cpu interface */
@@ -117,7 +118,7 @@ void css_pwr_domain_on_finish(uint32_t pwrlvl)
  * power domain at the highest power level which will be powered down. It
  * performs the actions common to the OFF and SUSPEND calls.
  ******************************************************************************/
-static void css_power_down_common(uint32_t pwrlvl)
+static void css_power_down_common(psci_power_state_t *target_state)
 {
 	uint32_t cluster_state = scpi_power_on;
 
@@ -125,7 +126,8 @@ static void css_power_down_common(uint32_t pwrlvl)
 	arm_gic_cpuif_deactivate();
 
 	/* Cluster is to be turned off, so disable coherency */
-	if (pwrlvl > ARM_PWR_LVL0) {
+	if (target_state->pwr_domain_state[ARM_PWR_LVL1] ==
+						ARM_LOCAL_STATE_OFF) {
 		cci_disable_snoop_dvm_reqs(MPIDR_AFFLVL1_VAL(read_mpidr()));
 		cluster_state = scpi_power_off;
 	}
@@ -141,40 +143,60 @@ static void css_power_down_common(uint32_t pwrlvl)
 }
 
 /*******************************************************************************
- * Handler called when a power domain is about to be turned off.
+ * Handler called when a power domain is about to be turned off. The
+ * target_state encodes the power state that each level should transition to.
  ******************************************************************************/
-static void css_pwr_domain_off(uint32_t pwrlvl)
+static void css_pwr_domain_off(psci_power_state_t *target_state)
 {
-	assert(pwrlvl <= ARM_PWR_LVL1);
+	assert(target_state->pwr_domain_state[ARM_PWR_LVL0] ==
+						ARM_LOCAL_STATE_OFF);
 
-	css_power_down_common(pwrlvl);
+	css_power_down_common(target_state);
 }
 
 /*******************************************************************************
- * Handler called when a power domain is about to be suspended.
+ * Handler called when a power domain is about to be suspended. The
+ * target_state encodes the power state that each level should transition to.
  ******************************************************************************/
 static void css_pwr_domain_suspend(uint64_t sec_entrypoint,
-				    uint32_t pwrlvl)
+				    psci_power_state_t *target_state)
 {
-	assert(pwrlvl <= ARM_PWR_LVL1);
+	/*
+	 * Juno has retention only at cpu level. Just return
+	 * as nothing is to be done for retention.
+	 */
+	if (target_state->pwr_domain_state[ARM_PWR_LVL0] ==
+						ARM_LOCAL_STATE_RET)
+		return;
+
+	assert(target_state->pwr_domain_state[ARM_PWR_LVL0] ==
+						ARM_LOCAL_STATE_OFF);
 
 	/*
 	 * Setup mailbox with address for CPU entrypoint when it next powers up.
 	 */
 	css_program_mailbox(read_mpidr_el1(), sec_entrypoint);
 
-	css_power_down_common(pwrlvl);
+	css_power_down_common(target_state);
 }
 
 /*******************************************************************************
  * Handler called when a power domain has just been powered on after
- * having been suspended earlier.
+ * having been suspended earlier. The target_state encodes the low power state
+ * that each level has woken up from.
  * TODO: At the moment we reuse the on finisher and reinitialize the secure
  * context. Need to implement a separate suspend finisher.
  ******************************************************************************/
-static void css_pwr_domain_suspend_finish(uint32_t pwrlvl)
+static void css_pwr_domain_suspend_finish(psci_power_state_t *target_state)
 {
-	css_pwr_domain_on_finish(pwrlvl);
+	/*
+	 * Return as nothing is to be done on waking up from retention.
+	 */
+	if (target_state->pwr_domain_state[ARM_PWR_LVL0] ==
+						ARM_LOCAL_STATE_RET)
+		return;
+
+	css_pwr_domain_on_finish(target_state);
 }
 
 /*******************************************************************************
@@ -213,11 +235,13 @@ static void __dead2 css_system_reset(void)
 }
 
 /*******************************************************************************
- * Handler called when a power domain is about to enter standby.
+ * Handler called when the CPU power domain is about to enter standby.
  ******************************************************************************/
-void css_pwr_domain_standby(unsigned int power_state)
+void css_cpu_standby(plat_local_state_t cpu_state)
 {
 	unsigned int scr;
+
+	assert(cpu_state == ARM_LOCAL_STATE_RET);
 
 	scr = read_scr_el3();
 	/* Enable PhysicalIRQ bit for NS world to wake the CPU */
@@ -240,7 +264,7 @@ static const plat_pm_ops_t css_ops = {
 	.pwr_domain_on		= css_pwr_domain_on,
 	.pwr_domain_on_finish	= css_pwr_domain_on_finish,
 	.pwr_domain_off		= css_pwr_domain_off,
-	.pwr_domain_standby	= css_pwr_domain_standby,
+	.cpu_standby		= css_cpu_standby,
 	.pwr_domain_suspend	= css_pwr_domain_suspend,
 	.pwr_domain_suspend_finish	= css_pwr_domain_suspend_finish,
 	.system_off		= css_system_off,

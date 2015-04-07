@@ -37,17 +37,33 @@
  * ARM standard platform handler called to check the validity of the power state
  * parameter.
  ******************************************************************************/
-int arm_validate_power_state(unsigned int power_state)
+int arm_validate_power_state(unsigned int power_state,
+			    psci_power_state_t *req_state)
 {
+	int pstate = psci_get_pstate_type(power_state);
+	int pwr_lvl = psci_get_pstate_pwrlvl(power_state);
+	int i;
+
+	assert(req_state);
+
+	if (pwr_lvl > PLAT_MAX_PWR_LVL)
+		return PSCI_E_INVALID_PARAMS;
+
 	/* Sanity check the requested state */
-	if (psci_get_pstate_type(power_state) == PSTATE_TYPE_STANDBY) {
+	if (pstate == PSTATE_TYPE_STANDBY) {
 		/*
 		 * It's possible to enter standby only on power level 0
-		 * (i.e. a CPU on ARM standard platforms).
 		 * Ignore any other power level.
 		 */
-		if (psci_get_pstate_pwrlvl(power_state) != ARM_PWR_LVL0)
+		if (pwr_lvl != ARM_PWR_LVL0)
 			return PSCI_E_INVALID_PARAMS;
+
+		req_state->pwr_domain_state[ARM_PWR_LVL0] =
+					ARM_LOCAL_STATE_RET;
+	} else {
+		for (i = ARM_PWR_LVL0; i <= pwr_lvl; i++)
+			req_state->pwr_domain_state[i] =
+					ARM_LOCAL_STATE_OFF;
 	}
 
 	/*

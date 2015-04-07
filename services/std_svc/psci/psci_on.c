@@ -44,16 +44,38 @@
  * This function checks whether a cpu which has been requested to be turned on
  * is OFF to begin with.
  ******************************************************************************/
-static int cpu_on_validate_state(unsigned int psci_state)
+static int cpu_on_validate_state(aff_info_state_t aff_state)
 {
-	if (psci_state == PSCI_STATE_ON || psci_state == PSCI_STATE_SUSPEND)
+	if (aff_state == AFF_STATE_ON)
 		return PSCI_E_ALREADY_ON;
 
-	if (psci_state == PSCI_STATE_ON_PENDING)
+	if (aff_state == AFF_STATE_ON_PENDING)
 		return PSCI_E_ON_PENDING;
 
-	assert(psci_state == PSCI_STATE_OFF);
+	assert(aff_state == AFF_STATE_OFF);
 	return PSCI_E_SUCCESS;
+}
+
+/*******************************************************************************
+ * This function sets the aff_info_state in the per-cpu data of the CPU
+ * specified by cpu_idx
+ ******************************************************************************/
+static void psci_set_aff_info_state_by_idx(unsigned int cpu_idx,
+					   aff_info_state_t aff_state)
+{
+
+	set_cpu_data_by_index(cpu_idx,
+			      psci_svc_cpu_data.aff_info_state,
+			      aff_state);
+
+	/*
+	 * The aff_info_state will always be accessed with caches on and share a
+	 * cache line with other per-cpu data. This cache line might get
+	 * invalidated due to maintenance operations on other per-cpu
+	 * data. Hence, it is safer to update main memory with the latest state
+	 * information.
+	 */
+	flush_cpu_data_by_index(cpu_idx, psci_svc_cpu_data.aff_info_state);
 }
 
 /*******************************************************************************
@@ -67,8 +89,8 @@ static int cpu_on_validate_state(unsigned int psci_state)
  * platform handler as it can return error.
  ******************************************************************************/
 int psci_cpu_on_start(unsigned long target_cpu,
-		   entry_point_info_t *ep,
-		   int end_pwrlvl)
+		      entry_point_info_t *ep,
+		      int end_pwrlvl)
 {
 	int rc;
 	unsigned long psci_entrypoint;
@@ -88,7 +110,7 @@ int psci_cpu_on_start(unsigned long target_cpu,
 	 * Generic management: Ensure that the cpu is off to be
 	 * turned on.
 	 */
-	rc = cpu_on_validate_state(psci_get_state(target_idx, PSCI_CPU_PWR_LVL));
+	rc = cpu_on_validate_state(psci_get_aff_info_state_by_idx(target_idx));
 	if (rc != PSCI_E_SUCCESS)
 		goto exit;
 
@@ -112,19 +134,15 @@ int psci_cpu_on_start(unsigned long target_cpu,
 	 * steps to power on.
 	 */
 	rc = psci_plat_pm_ops->pwr_domain_on(target_cpu,
-				    psci_entrypoint,
-				    MPIDR_AFFLVL0);
+				    psci_entrypoint);
 	assert(rc == PSCI_E_SUCCESS || rc == PSCI_E_INTERN_FAIL);
 
 	/*
-	 * This function updates the state of each power domain instance
-	 * corresponding to the target cpu index in the range of power
-	 * levels specified.
+	 * Set the PSCI state of the target cpu to ON_PENDING.
 	 */
 	if (rc == PSCI_E_SUCCESS) {
-		psci_do_state_coordination(end_pwrlvl,
-					   target_idx,
-					   PSCI_STATE_ON_PENDING);
+		psci_set_aff_info_state_by_idx(target_idx, AFF_STATE_ON_PENDING);
+
 		/*
 		 * Store the re-entry information for the non-secure world.
 		 */
@@ -141,19 +159,15 @@ exit:
  * are called by the common finisher routine in psci_common.c.
  ******************************************************************************/
 void psci_cpu_on_finish(unsigned int cpu_idx,
-			int max_off_pwrlvl)
+			psci_power_state_t *state_info)
 {
-	/* Ensure we have been explicitly woken up by another cpu */
-	assert(psci_get_state(cpu_idx, PSCI_CPU_PWR_LVL)
-	       == PSCI_STATE_ON_PENDING);
-
 	/*
 	 * Plat. management: Perform the platform specific actions
 	 * for this cpu e.g. enabling the gic or zeroing the mailbox
 	 * register. The actual state of this cpu has already been
 	 * changed.
 	 */
-	psci_plat_pm_ops->pwr_domain_on_finish(max_off_pwrlvl);
+	psci_plat_pm_ops->pwr_domain_on_finish(state_info);
 
 	/*
 	 * Arch. management: Enable data cache and manage stack memory
@@ -172,6 +186,9 @@ void psci_cpu_on_finish(unsigned int cpu_idx,
 	 * is done.
 	 */
 	psci_spin_lock_cpu(cpu_idx);
+
+	/* Ensure we have been explicitly woken up by another cpu */
+	assert(psci_get_aff_info_state() == AFF_STATE_ON_PENDING);
 
 	/*
 	 * Call the cpu on finish handler registered by the Secure Payload

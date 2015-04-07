@@ -54,6 +54,18 @@
 #define ARM_PWR_LVL0		MPIDR_AFFLVL0
 #define ARM_PWR_LVL1		MPIDR_AFFLVL1
 
+/*
+ *  Macros for local power states in ARM platforms encoded by State-ID field
+ *  within the power-state parameter.
+ */
+/* Local power state for power domains in Run state. */
+#define ARM_LOCAL_STATE_RUN	0
+/* Local power state for retention. Valid only for CPU power domains */
+#define ARM_LOCAL_STATE_RET	1
+/* Local power state for OFF/power-down. Valid for CPU and cluster power
+   domains */
+#define ARM_LOCAL_STATE_OFF	2
+
 /* Memory location options for TSP */
 #define ARM_TRUSTED_SRAM_ID		0
 #define ARM_TRUSTED_DRAM_ID		1
@@ -173,6 +185,19 @@
 #define PLAT_NUM_PWR_DOMAINS		(ARM_CLUSTER_COUNT + \
 					 PLATFORM_CORE_COUNT)
 #define PLAT_MAX_PWR_LVL		ARM_PWR_LVL1
+
+/*
+ * This macro defines the deepest retention state possible. A higher state
+ * id will represent an invalid or a power down state.
+ */
+#define PLAT_MAX_RET_STATE		ARM_LOCAL_STATE_RET
+
+/*
+ * This macro defines the deepest power down states possible. Any state ID
+ * higher than this is invalid.
+ */
+#define PLAT_MAX_OFF_STATE		ARM_LOCAL_STATE_OFF
+
 
 #define PLATFORM_CORE_COUNT		(PLAT_ARM_CLUSTER0_CORE_COUNT + \
 					 PLAT_ARM_CLUSTER1_CORE_COUNT)

@@ -159,7 +159,8 @@ void arm_io_setup(void);
 void arm_tzc_setup(void);
 
 /* PM utility functions */
-int arm_validate_power_state(unsigned int power_state);
+int arm_validate_power_state(unsigned int power_state,
+			    psci_power_state_t *req_state);
 
 /* Topology utility function */
 int arm_check_mpidr(uint64_t mpidr);
