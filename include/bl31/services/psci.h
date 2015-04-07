@@ -95,23 +95,31 @@
  * PSCI CPU_SUSPEND 'power_state' parameter specific defines
  ******************************************************************************/
 #define PSTATE_ID_SHIFT		0
+
+#if PSCI_EXTENDED_STATE_ID
+#define PSTATE_VALID_MASK	0xB0000000
+#define PSTATE_TYPE_SHIFT	30
+#define PSTATE_ID_MASK		0xfffffff
+#else
+#define PSTATE_VALID_MASK	0xFCFE0000
 #define PSTATE_TYPE_SHIFT	16
 #define PSTATE_PWR_LVL_SHIFT	24
-
 #define PSTATE_ID_MASK		0xffff
-#define PSTATE_TYPE_MASK	0x1
 #define PSTATE_PWR_LVL_MASK	0x3
-#define PSTATE_VALID_MASK     0xFCFE0000
+
+#define psci_get_pstate_pwrlvl(pstate)	((pstate >> PSTATE_PWR_LVL_SHIFT) & \
+					PSTATE_PWR_LVL_MASK)
+#endif /* __PSCI_EXTENDED_STATE_ID__ */
 
 #define PSTATE_TYPE_STANDBY	0x0
 #define PSTATE_TYPE_POWERDOWN	0x1
+#define PSTATE_TYPE_MASK	0x1
 
 #define psci_get_pstate_id(pstate)	((pstate >> PSTATE_ID_SHIFT) & \
 					PSTATE_ID_MASK)
 #define psci_get_pstate_type(pstate)	((pstate >> PSTATE_TYPE_SHIFT) & \
 					PSTATE_TYPE_MASK)
-#define psci_get_pstate_pwrlvl(pstate)	((pstate >> PSTATE_PWR_LVL_SHIFT) & \
-					PSTATE_PWR_LVL_MASK)
+#define psci_check_power_state(pstate) (pstate & PSTATE_VALID_MASK)
 
 /*******************************************************************************
  * PSCI CPU_FEATURES feature flag specific defines
@@ -120,6 +128,11 @@
 #define FF_PSTATE_SHIFT		1
 #define FF_PSTATE_ORIG		0
 #define FF_PSTATE_EXTENDED	1
+#if PSCI_EXTENDED_STATE_ID
+#define FF_PSTATE		FF_PSTATE_EXTENDED
+#else
+#define FF_PSTATE		FF_PSTATE_ORIG
+#endif
 
 /* Features flags for CPU SUSPEND OS Initiated mode support. Bits [0:0] */
 #define FF_MODE_SUPPORT_SHIFT		0
@@ -144,25 +157,46 @@
 #define PSCI_E_NOT_PRESENT	-7
 #define PSCI_E_DISABLED		-8
 
-/*******************************************************************************
- * PSCI power domain state related constants.
- ******************************************************************************/
-#define PSCI_STATE_ON		0x0
-#define PSCI_STATE_OFF		0x1
-#define PSCI_STATE_ON_PENDING	0x2
-#define PSCI_STATE_SUSPEND	0x3
-
-#define PSCI_INVALID_DATA -1
-
-#define get_phys_state(x)	(x != PSCI_STATE_ON ? \
-				 PSCI_STATE_OFF : PSCI_STATE_ON)
-
-#define psci_validate_power_state(pstate) (pstate & PSTATE_VALID_MASK)
-
-
 #ifndef __ASSEMBLY__
 
 #include <stdint.h>
+
+/*
+ * These are the states reported by the PSCI_AFFINITY_INFO API for the specified
+ * CPU. The definitions of these states can be found in Section 5.7.1 in the
+ * PSCI specification (ARM DEN 0022C).
+ */
+typedef enum {
+	AFF_STATE_ON = 0,
+	AFF_STATE_OFF = 1,
+	AFF_STATE_ON_PENDING = 2
+} aff_info_state_t;
+
+/*
+ * Macro to represent invalid affinity level within PSCI.
+ */
+#define PSCI_INVALID_DATA -1
+
+/*
+ * Type for representing the local power state at a particular level.
+ */
+typedef uint8_t plat_local_state_t;
+
+/*****************************************************************************
+ * This data structure defines the representation of the power state parameter
+ * for its exchange between the generic PSCI code and the platform port. For
+ * example, it is used by the platform port to specify the requested power
+ * states during a power management operation. It is used by the generic code to
+ * inform the platform about the target power states that each level should
+ * enter.
+ ****************************************************************************/
+typedef struct psci_power_state {
+	/*
+	 * The pwr_domain_state[] stores the local power state at each level
+	 * for the CPU.
+	 */
+	plat_local_state_t pwr_domain_state[PLAT_MAX_PWR_LVL + 1];
+} psci_power_state_t;
 
 /*******************************************************************************
  * Structure used to store per-cpu information relevant to the PSCI service.
@@ -170,8 +204,15 @@
  * this information will not reside on a cache line shared with another cpu.
  ******************************************************************************/
 typedef struct psci_cpu_data {
-	uint32_t power_state;	/* The power state from CPU_SUSPEND */
-	unsigned char psci_state;   /* The state of this CPU as seen by PSCI */
+	/*
+	 * Highest power level which takes part in a power management
+	 * operation.
+	 */
+	int8_t target_pwrlvl;
+	aff_info_state_t aff_info_state;
+
+	/* The local power state of this CPU */
+	plat_local_state_t local_state;
 #if !USE_COHERENT_MEM
 	bakery_info_t pcpu_bakery_info[PSCI_NUM_PWR_DOMAINS - PLATFORM_CORE_COUNT];
 #endif
@@ -182,18 +223,18 @@ typedef struct psci_cpu_data {
  * perform common low level pm functions
  ******************************************************************************/
 typedef struct plat_pm_ops {
-	void (*pwr_domain_standby)(unsigned int power_state);
+	void (*cpu_standby)(plat_local_state_t cpu_state);
 	int (*pwr_domain_on)(unsigned long mpidr,
-			  unsigned long sec_entrypoint,
-			  unsigned int pwrlvl);
-	void (*pwr_domain_off)(unsigned int pwrlvl);
+			  unsigned long sec_entrypoint);
+	void (*pwr_domain_off)(psci_power_state_t *target_state);
 	void (*pwr_domain_suspend)(unsigned long sec_entrypoint,
-			       unsigned int pwrlvl);
-	void (*pwr_domain_on_finish)(unsigned int pwrlvl);
-	void (*pwr_domain_suspend_finish)(unsigned int pwrlvl);
+			       psci_power_state_t *target_state);
+	void (*pwr_domain_on_finish)(psci_power_state_t *target_state);
+	void (*pwr_domain_suspend_finish)(psci_power_state_t *target_state);
 	void (*system_off)(void) __dead2;
 	void (*system_reset)(void) __dead2;
-	int (*validate_power_state)(unsigned int power_state);
+	int (*validate_power_state)(unsigned int power_state,
+				    psci_power_state_t *req_state);
 	int (*validate_ns_entrypoint)(unsigned long ns_entrypoint);
 } plat_pm_ops_t;
 
@@ -230,10 +271,6 @@ void __dead2 psci_power_down_wfi(void);
 void psci_cpu_on_finish_entry(void);
 void psci_cpu_suspend_finish_entry(void);
 void psci_register_spd_pm_hook(const spd_pm_ops_t *);
-int psci_get_suspend_stateid_by_mpidr(unsigned long);
-int psci_get_suspend_stateid(void);
-int psci_get_suspend_pwrlvl(void);
-
 uint64_t psci_smc_handler(uint32_t smc_fid,
 			  uint64_t x1,
 			  uint64_t x2,

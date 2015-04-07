@@ -165,6 +165,13 @@
 #define FVP_PWR_LVL1		MPIDR_AFFLVL1
 
 /*
+ * State IDs for local power states on the FVP.
+ */
+#define FVP_PM_RUN	0	/* Valid for CPUs and Clusters */
+#define FVP_PM_RET	1	/* Valid for only CPUs */
+#define FVP_PM_OFF	2	/* Valid for CPUs and Clusters */
+
+/*
  * The number of regions like RO(code), coherent and data required by
  * different BL stages which need to be mapped in the MMU.
  */

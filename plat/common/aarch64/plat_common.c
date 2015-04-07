@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2014-2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -28,15 +28,18 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
+#include <psci.h>
 #include <xlat_tables.h>
 
 /*
- * The following 2 platform setup functions are weakly defined. They
+ * The following 3 platform setup functions are weakly defined. They
  * provide typical implementations that may be re-used by multiple
  * platforms but may also be overridden by a platform if required.
  */
 #pragma weak bl31_plat_enable_mmu
 #pragma weak bl32_plat_enable_mmu
+#pragma weak plat_get_target_pwr_state
 
 void bl31_plat_enable_mmu(uint32_t flags)
 {
@@ -46,4 +49,33 @@ void bl31_plat_enable_mmu(uint32_t flags)
 void bl32_plat_enable_mmu(uint32_t flags)
 {
 	enable_mmu_el1(flags);
+}
+
+/*
+ * The PSCI generic code uses this API to let the platform participate in state
+ * coordination during a power management operation. It compares the platform
+ * specific local power states requested by each cpu for a given power domain
+ * and returns the coordinated target power state that the domain should
+ * enter. A platform assigns a number to a local power state. This default
+ * implementation assumes that the platform assigns these numbers in order of
+ * increasing depth of the power state i.e. for two power states X & Y, if X < Y
+ * then X represents a shallower power state than Y. As a result, the
+ * coordinated target local power state for a power domain will be the minimum
+ * of the requested local power states.
+ */
+plat_local_state_t plat_get_target_pwr_state(unsigned int lvl,
+					     const plat_local_state_t *states,
+					     unsigned int ncpu)
+{
+	plat_local_state_t target = PLAT_MAX_OFF_STATE, temp;
+
+	assert(ncpu);
+
+	do {
+		temp = *states++;
+		if (temp < target)
+			target = temp;
+	} while (--ncpu);
+
+	return target;
 }

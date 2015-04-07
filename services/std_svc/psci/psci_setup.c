@@ -62,32 +62,36 @@ static void psci_init_pwr_domain_node(int array_idx, int parent_idx, int level)
 		psci_non_cpu_pd_nodes[array_idx].level = level;
 		psci_lock_init(psci_non_cpu_pd_nodes, array_idx);
 		psci_non_cpu_pd_nodes[array_idx].parent_node = parent_idx;
+		psci_non_cpu_pd_nodes[array_idx].local_state =
+							 PLAT_MAX_OFF_STATE;
 
 #if !USE_COHERENT_MEM
-		flush_dcache_range((uint64_t) &psci_non_cpu_pd_nodes[array_idx],
-				   sizeof(psci_non_cpu_pd_nodes[array_idx]));
+		flush_dcache_range(
+				(uint64_t) &psci_non_cpu_pd_nodes[array_idx],
+				sizeof(psci_non_cpu_pd_nodes[array_idx]));
 #endif
 	} else {
+		psci_cpu_data_t *svc_cpu_data;
 
 		psci_cpu_pd_nodes[array_idx].parent_node = parent_idx;
 
 		/* Initialize with an invalid mpidr */
 		psci_cpu_pd_nodes[array_idx].mpidr = -1;
 
-		/*
-		 * Mark the cpu as OFF. Higher power level reference counts
-		 * have already been memset to 0
-		 */
-		set_cpu_data_by_index(array_idx,
-				      psci_svc_cpu_data.psci_state,
-				      PSCI_STATE_OFF);
+		svc_cpu_data =
+			&(_cpu_data_by_index(array_idx)->psci_svc_cpu_data);
 
-		/* Invalidate the suspend context for the node */
-		set_cpu_data_by_index(array_idx,
-				      psci_svc_cpu_data.power_state,
-				      PSCI_INVALID_DATA);
+		/* Set the Affinity Info for the cores as OFF */
+		svc_cpu_data->aff_info_state = AFF_STATE_OFF;
 
-		flush_cpu_data_by_index(array_idx, psci_svc_cpu_data);
+		/* Invalidate the suspend level for the cpu */
+		svc_cpu_data->target_pwrlvl = PSCI_INVALID_DATA;
+
+		/* Set the power state to OFF state */
+		svc_cpu_data->local_state = PLAT_MAX_OFF_STATE;
+
+		flush_dcache_range((uint64_t)svc_cpu_data,
+						 sizeof(*svc_cpu_data));
 
 		cm_set_context_by_index(array_idx,
 					(void *) &psci_ns_context[array_idx],
@@ -146,7 +150,7 @@ void populate_power_domain_tree(unsigned char *plat_array,
 	 * - Index of first free entry in psci_non_cpu_pd_nodes[] or
 	 *   psci_cpu_pd_nodes[] i.e. node_index depending upon the level.
 	 */
-	while (num_levels >= 0) {
+	while (num_levels >= PSCI_CPU_PWR_LVL) {
 		num_nodes_at_next_lvl = 0;
 		/*
 		 * For each entry (parent node) at this level in the plat_array:
@@ -176,7 +180,7 @@ void populate_power_domain_tree(unsigned char *plat_array,
 		num_levels--;
 
 		/* Reset the index for the cpu power domain array */
-		if (num_levels == 0)
+		if (num_levels == PSCI_CPU_PWR_LVL)
 			node_index = 0;
 	}
 
@@ -235,12 +239,13 @@ int32_t psci_setup(void)
 	flush_dcache_range((uint64_t) &psci_cpu_pd_nodes,
 			   sizeof(psci_cpu_pd_nodes));
 
+	psci_init_req_local_pwr_states();
+
 	/*
-	 * Mark the current CPU and its parent power domains as ON. No need to lock
-	 * as this is the primary cpu.
+	 * Set the requested and target state of this CPU and all the higher
+	 * power domain levels for this CPU to run.
 	 */
-	psci_do_state_coordination(PLAT_MAX_PWR_LVL, platform_my_core_pos(),
-				   PSCI_STATE_ON);
+	psci_set_pwr_domains_to_run(PLAT_MAX_PWR_LVL);
 
 	platform_setup_pm(&psci_plat_pm_ops);
 	assert(psci_plat_pm_ops);

@@ -102,6 +102,19 @@
 #define PLAT_NUM_PWR_DOMAINS		(FVP_CLUSTER_COUNT + \
 					PLATFORM_CORE_COUNT)
 #define PLAT_MAX_PWR_LVL		FVP_PWR_LVL1
+
+/*
+ * This macro defines the deepest retention state possible. A higher state
+ * id will represent an invalid or a power down state.
+ */
+#define PLAT_MAX_RET_STATE		FVP_PM_RET
+
+/*
+ * This macro defines the deepest power down states possible. Any state ID
+ * higher than this is invalid.
+ */
+#define PLAT_MAX_OFF_STATE		FVP_PM_OFF
+
 #define MAX_IO_DEVICES			3
 #define MAX_IO_HANDLES			4
 

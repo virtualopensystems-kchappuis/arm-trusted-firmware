@@ -91,8 +91,11 @@ static void fvp_cluster_pwrdwn_common(void)
 /*******************************************************************************
  * FVP handler called when a CPU is about to enter standby.
  ******************************************************************************/
-void fvp_pwr_domain_standby(unsigned int power_state)
+void fvp_cpu_standby(plat_local_state_t cpu_state)
 {
+
+	assert(cpu_state == FVP_PM_RET);
+
 	/*
 	 * Enter standby state
 	 * dsb is good practice before using wfi to enter low power states
@@ -103,20 +106,13 @@ void fvp_pwr_domain_standby(unsigned int power_state)
 
 /*******************************************************************************
  * FVP handler called when a power domain is about to be turned on. The
- * level and mpidr determine the power domain.
+ * mpidr determines the CPU to be turned on.
  ******************************************************************************/
 int fvp_pwr_domain_on(unsigned long mpidr,
-		   unsigned long sec_entrypoint,
-		   unsigned int pwrlvl)
+		   unsigned long sec_entrypoint)
 {
 	int rc = PSCI_E_SUCCESS;
 	unsigned int psysr;
-
-	/*
-	 * It's possible to turn on only power level 0 i.e. a cpu
-	 * on the FVP.
-	 */
-	assert(pwrlvl == FVP_PWR_LVL0);
 
 	/*
 	 * Ensure that we do not cancel an inflight power off request
@@ -136,11 +132,12 @@ int fvp_pwr_domain_on(unsigned long mpidr,
 }
 
 /*******************************************************************************
- * FVP handler called when a power domain is about to be turned off.
+ * FVP handler called when a power domain is about to be turned off. The
+ * target_state encodes the power state that each level should transition to.
  ******************************************************************************/
-void fvp_pwr_domain_off(unsigned int pwrlvl)
+void fvp_pwr_domain_off(psci_power_state_t *target_state)
 {
-	assert(pwrlvl <= FVP_PWR_LVL1);
+	assert(target_state->pwr_domain_state[FVP_PWR_LVL0] == FVP_PM_OFF);
 
 	/*
 	 * If execution reaches this stage then this power domain will be
@@ -149,20 +146,28 @@ void fvp_pwr_domain_off(unsigned int pwrlvl)
 	 */
 	fvp_cpu_pwrdwn_common();
 
-	if (pwrlvl != FVP_PWR_LVL0)
+	if (target_state->pwr_domain_state[FVP_PWR_LVL1] == FVP_PM_OFF)
 		fvp_cluster_pwrdwn_common();
 
 }
 
 /*******************************************************************************
- * FVP handler called when a power domain is about to be suspended.
+ * FVP handler called when a power domain is about to be suspended. The
+ * target_state encodes the power state that each level should transition to.
  ******************************************************************************/
 void fvp_pwr_domain_suspend(unsigned long sec_entrypoint,
-			unsigned int pwrlvl)
+			psci_power_state_t *target_state)
 {
 	unsigned long mpidr;
 
-	assert(pwrlvl <= FVP_PWR_LVL1);
+	/*
+	 * FVP has retention only at cpu level. Just return
+	 * as nothing is to be done for retention.
+	 */
+	if (target_state->pwr_domain_state[FVP_PWR_LVL0] == FVP_PM_RET)
+		return;
+
+	assert(target_state->pwr_domain_state[FVP_PWR_LVL0] == FVP_PM_OFF);
 
 	/* Get the mpidr for this cpu */
 	mpidr = read_mpidr_el1();
@@ -177,25 +182,26 @@ void fvp_pwr_domain_suspend(unsigned long sec_entrypoint,
 	fvp_cpu_pwrdwn_common();
 
 	/* Perform the common cluster specific operations */
-	if (pwrlvl != FVP_PWR_LVL0)
+	if (target_state->pwr_domain_state[FVP_PWR_LVL1] == FVP_PM_OFF)
 		fvp_cluster_pwrdwn_common();
 }
 
 /*******************************************************************************
  * FVP handler called when a power domain has just been powered on after
- * being turned off earlier.
+ * being turned off earlier. The target_state encodes the low power state that
+ * each level has woken up from.
  ******************************************************************************/
-void fvp_pwr_domain_on_finish(unsigned int pwrlvl)
+void fvp_pwr_domain_on_finish(psci_power_state_t *target_state)
 {
 	unsigned long mpidr;
 
-	assert(pwrlvl <= FVP_PWR_LVL1);
+	assert(target_state->pwr_domain_state[FVP_PWR_LVL0] == FVP_PM_OFF);
 
 	/* Get the mpidr for this cpu */
 	mpidr = read_mpidr_el1();
 
 	/* Perform the common cluster specific operations */
-	if (pwrlvl != FVP_PWR_LVL0) {
+	if (target_state->pwr_domain_state[FVP_PWR_LVL1] == FVP_PM_OFF) {
 		/*
 		 * This CPU might have woken up whilst the cluster was
 		 * attempting to power down. In this case the FVP power
@@ -228,14 +234,21 @@ void fvp_pwr_domain_on_finish(unsigned int pwrlvl)
 }
 
 /*******************************************************************************
- * FVP handler called when a powr domain has just been powered on after
- * having been suspended earlier.
+ * FVP handler called when a power domain has just been powered on after
+ * having been suspended earlier. The target_state encodes the low power state
+ * that each level has woken up from.
  * TODO: At the moment we reuse the on finisher and reinitialize the secure
  * context. Need to implement a separate suspend finisher.
  ******************************************************************************/
-void fvp_pwr_domain_suspend_finish(unsigned int pwrlvl)
+void fvp_pwr_domain_suspend_finish(psci_power_state_t *target_state)
 {
-	fvp_pwr_domain_on_finish(pwrlvl);
+	/*
+	 * Nothing to be done on waking up from retention from CPU level.
+	 */
+	if (target_state->pwr_domain_state[FVP_PWR_LVL0] == FVP_PM_RET)
+		return;
+
+	fvp_pwr_domain_on_finish(target_state);
 }
 
 /*******************************************************************************
@@ -264,16 +277,30 @@ static void __dead2 fvp_system_reset(void)
 /*******************************************************************************
  * FVP handler called to check the validity of the power state parameter.
  ******************************************************************************/
-int fvp_validate_power_state(unsigned int power_state)
+int fvp_validate_power_state(unsigned int power_state, psci_power_state_t *req_state)
 {
+	int pstate = psci_get_pstate_type(power_state);
+	int pwr_lvl = psci_get_pstate_pwrlvl(power_state);
+	int i;
+
+	assert(req_state);
+
+	if (pwr_lvl > PLAT_MAX_PWR_LVL)
+		return PSCI_E_INVALID_PARAMS;
+
 	/* Sanity check the requested state */
-	if (psci_get_pstate_type(power_state) == PSTATE_TYPE_STANDBY) {
+	if (pstate == PSTATE_TYPE_STANDBY) {
 		/*
 		 * It's possible to enter standby only on power level 0
 		 * i.e. a cpu on the fvp. Ignore any other power level.
 		 */
-		if (psci_get_pstate_pwrlvl(power_state) != FVP_PWR_LVL0)
+		if (pwr_lvl != FVP_PWR_LVL0)
 			return PSCI_E_INVALID_PARAMS;
+
+		req_state->pwr_domain_state[FVP_PWR_LVL0] = FVP_PM_RET;
+	} else {
+		for (i = FVP_PWR_LVL0; i <= pwr_lvl; i++)
+			req_state->pwr_domain_state[i] = FVP_PM_OFF;
 	}
 
 	/*
@@ -289,7 +316,7 @@ int fvp_validate_power_state(unsigned int power_state)
  * Export the platform handlers to enable psci to invoke them
  ******************************************************************************/
 static const plat_pm_ops_t fvp_plat_pm_ops = {
-	.pwr_domain_standby = fvp_pwr_domain_standby,
+	.cpu_standby = fvp_cpu_standby,
 	.pwr_domain_on = fvp_pwr_domain_on,
 	.pwr_domain_off = fvp_pwr_domain_off,
 	.pwr_domain_suspend = fvp_pwr_domain_suspend,

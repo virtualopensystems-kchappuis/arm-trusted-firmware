@@ -166,6 +166,13 @@
 #define JUNO_PWR_LVL1		MPIDR_AFFLVL1
 
 /*
+ * Power management State IDs for Juno.
+ */
+#define JUNO_PM_RUN	0
+#define JUNO_PM_RET	1
+#define JUNO_PM_OFF	2
+
+/*
  * The number of regions like RO(code), coherent and data required by
  * different BL stages which need to be mapped in the MMU.
  */
