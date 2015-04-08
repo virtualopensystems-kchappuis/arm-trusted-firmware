@@ -37,37 +37,16 @@
 		(((mpidr) & 0x100) ? PLAT_ARM_CLUSTER1_CORE_COUNT :\
 				PLAT_ARM_CLUSTER0_CORE_COUNT)
 
-/*
- * Weak definitions use fixed topology. Strong definitions could make topology
- * configurable
- */
-#pragma weak plat_get_pwr_domain_count
-#pragma weak plat_get_pwr_domain_state
-#pragma weak plat_arm_topology_setup
+/* The power domain tree descriptor which need to be exported by ARM platforms */
+extern const unsigned char arm_power_domain_tree_desc[];
 
-unsigned int plat_get_pwr_domain_count(unsigned int pwr_lvl,
-						unsigned long mpidr)
+
+/*******************************************************************************
+ * This function returns the ARM default topology tree information.
+ ******************************************************************************/
+const unsigned char *platform_get_power_domain_tree_desc(void)
 {
-	/* Report 1 (absent) power domain  at levels higher that the
-	   cluster level */
-	if (pwr_lvl > ARM_PWR_LVL1)
-		return 1;
-
-	if (pwr_lvl == ARM_PWR_LVL1)
-		return ARM_CLUSTER_COUNT;
-
-	return get_arm_cluster_core_count(mpidr);
-}
-
-unsigned int plat_get_pwr_domain_state(unsigned int pwr_lvl,
-		unsigned long mpidr)
-{
-	return pwr_lvl <= ARM_PWR_LVL1 ? PSCI_PWR_DOMAIN_PRESENT :
-						PSCI_PWR_DOMAIN_ABSENT;
-}
-
-void plat_arm_topology_setup(void)
-{
+	return arm_power_domain_tree_desc;
 }
 
 /*******************************************************************************

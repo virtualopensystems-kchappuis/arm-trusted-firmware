@@ -193,6 +193,7 @@ void plat_arm_gic_init(void);
 void plat_arm_security_setup(void);
 void plat_arm_pwrc_setup(void);
 
+
 /*
  * Optional functions required in ARM standard platforms
  */
@@ -200,7 +201,6 @@ void plat_arm_io_setup(void);
 int plat_arm_get_alt_image_source(
 	const uintptr_t image_spec,
 	uintptr_t *dev_handle);
-void plat_arm_topology_setup(void);
 unsigned int plat_arm_calc_core_pos(uint64_t mpidr);
 
 #endif /* __PLAT_ARM_H__ */
