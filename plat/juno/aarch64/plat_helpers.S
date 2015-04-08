@@ -41,8 +41,8 @@
 	.globl	plat_report_exception
 	.globl	plat_reset_handler
 	.globl	platform_my_core_pos
-	.globl	platform_get_core_pos
 	.globl	platform_mem_init
+	.globl	juno_get_core_pos_common
 
 	/* Define a crash console for the plaform */
 #define JUNO_CRASH_CONSOLE_BASE		PL011_UART3_BASE
@@ -103,21 +103,23 @@ endfunc plat_report_exception
 	 */
 func platform_my_core_pos
 	mrs	x0, mpidr_el1
-	b	platform_get_core_pos
+	b	juno_get_core_pos_common
 endfunc platform_my_core_pos
 
 	/* -----------------------------------------------------
-	 * Return 0 to 3 for the A53s and 4 or 5 for the A57s
+	 * uint32_t juno_get_core_pos_common(uint64_t mpidr) ;
+	 * Internal helper function to calculate the core
+	 * position. Returns 0 to 3 for the A53s and 4 or 5 for
+	 * the A57s
 	 * -----------------------------------------------------
 	 */
-func platform_get_core_pos
+func juno_get_core_pos_common
 	and	x1, x0, #MPIDR_CPU_MASK
 	and	x0, x0, #MPIDR_CLUSTER_MASK
 	eor	x0, x0, #(1 << MPIDR_AFFINITY_BITS)  // swap A53/A57 order
 	add	x0, x1, x0, LSR #6
 	ret
-endfunc platform_get_core_pos
-
+endfunc juno_get_core_pos_common
 
 	/* -----------------------------------------------------
 	 * void platform_mem_init(void);

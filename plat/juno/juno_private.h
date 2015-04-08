@@ -130,7 +130,6 @@ void bl1_plat_arch_setup(void);
 void bl2_plat_arch_setup(void);
 void bl31_plat_arch_setup(void);
 int platform_setup_pm(const struct plat_pm_ops **plat_ops);
-unsigned int platform_get_core_pos(unsigned long mpidr);
 void configure_mmu_el1(unsigned long total_base,
 		       unsigned long total_size,
 		       unsigned long ro_start,
@@ -155,6 +154,9 @@ unsigned long platform_get_stack(unsigned long mpidr);
 uint64_t plat_get_syscnt_freq(void);
 void plat_gic_init(void);
 void plat_cci_init(void);
+
+/* Declarations for plat_helpers.S */
+uint32_t juno_get_core_pos_common(uint64_t mpidr);
 
 /* Declarations for plat_topology.c */
 int plat_setup_topology(void);

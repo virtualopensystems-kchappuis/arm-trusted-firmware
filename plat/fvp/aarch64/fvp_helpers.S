@@ -44,6 +44,7 @@
 	.globl	plat_crash_console_init
 	.globl	plat_crash_console_putc
 	.globl	platform_my_core_pos
+	.globl	fvp_get_core_pos_common
 
 	.macro	fvp_choose_gicmmap  param1, param2, x_tmp, w_tmp, res
 	ldr	\x_tmp, =VE_SYSREGS_BASE + V2M_SYS_ID
@@ -55,14 +56,30 @@
 
 	/* -----------------------------------------------------
 	 *  uint32_t platform_my_core_pos(void);
-	 *  This function uses the weak platform_get_core_pos()
-	 *  definition to get the index of the calling CPU.
+	 *  This function calls fvp_get_core_pos_common() to get
+	 *  the index of the calling CPU.
 	 * -----------------------------------------------------
 	 */
 func platform_my_core_pos
 	mrs	x0, mpidr_el1
-	b	platform_get_core_pos
+	b	fvp_get_core_pos_common
 endfunc platform_my_core_pos
+
+	/* -----------------------------------------------------
+	 *  uint32_t fvp_get_core_pos_common(uint64_t mpidr) ;
+	 *  Internal helper function to calculate the core
+	 *  position under the assumption that there are 2
+	 *  clusters with 4 cpus each i.e.
+	 *  CorePos = (ClusterId * 4) + CoreId
+	 * -----------------------------------------------------
+	 */
+func fvp_get_core_pos_common
+       and     x1, x0, #MPIDR_CPU_MASK
+       and     x0, x0, #MPIDR_CLUSTER_MASK
+       add     x0, x1, x0, LSR #6
+       ret
+endfunc fvp_get_core_pos_common
+
 	/* -----------------------------------------------------
 	 * void plat_secondary_cold_boot_setup (void);
 	 *

@@ -32,7 +32,6 @@
 #include <cpu_data.h>
 
 .globl	init_cpu_data_ptr
-.globl	_cpu_data_by_mpidr
 .globl	_cpu_data_by_index
 
 /* -----------------------------------------------------------------
@@ -52,25 +51,6 @@ func init_cpu_data_ptr
 	msr	tpidr_el3, x0
 	ret	x10
 endfunc init_cpu_data_ptr
-
-
-/* -----------------------------------------------------------------
- * cpu_data_t *_cpu_data_by_mpidr(uint64_t mpidr)
- *
- * Return the cpu_data structure for the CPU with given MPIDR
- *
- * This can be called without a valid stack. It assumes that
- * platform_get_core_pos() does not clobber register x9.
- * clobbers: x0, x1, x9
- * -----------------------------------------------------------------
- */
-func _cpu_data_by_mpidr
-	mov	x9, x30
-	bl	platform_get_core_pos
-	mov	x30, x9
-	b	_cpu_data_by_index
-endfunc _cpu_data_by_mpidr
-
 
 /* -----------------------------------------------------------------
  * cpu_data_t *_cpu_data_by_index(uint32_t cpu_index)

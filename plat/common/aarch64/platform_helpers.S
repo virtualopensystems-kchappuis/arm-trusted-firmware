@@ -33,7 +33,6 @@
 #include <platform_def.h>
 
 
-	.weak	platform_get_core_pos
 	.weak	platform_check_mpidr
 	.weak	plat_report_exception
 	.weak	plat_crash_console_init
@@ -41,18 +40,6 @@
 	.weak	plat_reset_handler
 	.weak	plat_disable_acp
 
-	/* -----------------------------------------------------
-	 *  int platform_get_core_pos(int mpidr);
-	 *  With this function: CorePos = (ClusterId * 4) +
-	 *  				  CoreId
-	 * -----------------------------------------------------
-	 */
-func platform_get_core_pos
-	and	x1, x0, #MPIDR_CPU_MASK
-	and	x0, x0, #MPIDR_CLUSTER_MASK
-	add	x0, x1, x0, LSR #6
-	ret
-endfunc platform_get_core_pos
 
 	/* -----------------------------------------------------
 	 * Placeholder function which should be redefined by
@@ -63,6 +50,7 @@ func platform_check_mpidr
 	mov	x0, xzr
 	ret
 endfunc platform_check_mpidr
+
 
 	/* -----------------------------------------------------
 	 * Placeholder function which should be redefined by

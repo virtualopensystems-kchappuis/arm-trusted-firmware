@@ -142,6 +142,9 @@ void fvp_cci_disable(void);
 
 void fvp_gic_init(void);
 
+/* Declarations for fvp_helpers.S */
+uint32_t fvp_get_core_pos_common(uint64_t);
+
 /* Declarations for fvp_topology.c */
 int fvp_setup_topology(void);
 

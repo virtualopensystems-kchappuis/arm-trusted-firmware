@@ -33,6 +33,7 @@
 /* TODO: Reusing psci error codes & state information. Get our own! */
 #include <psci.h>
 #include "drivers/pwrc/fvp_pwrc.h"
+#include "fvp_private.h"
 
 /* We treat '255' as an invalid power domain instance */
 #define INVALID_PWR_DOMAIN	0xff
@@ -241,4 +242,47 @@ int fvp_setup_topology(void)
 
 	topology_setup_done = 1;
 	return 0;
+}
+
+/*******************************************************************************
+ * This function validates an MPIDR by checking whether it falls within the
+ * acceptable bounds of an FVP variant. An FVP variant can have a maximum of 2
+ * clusters and 4 CPUs per-cluster. The power controller is used to perform the
+ * check. An error code (-1) is returned if an incorrect mpidr is passed.
+ ******************************************************************************/
+int fvp_check_mpidr(unsigned long mpidr)
+{
+	unsigned int cluster_id, cpu_id;
+
+	mpidr &= MPIDR_AFFINITY_MASK;
+
+	if (mpidr & ~(MPIDR_CLUSTER_MASK | MPIDR_CPU_MASK))
+		return -1;
+
+	cluster_id = (mpidr >> MPIDR_AFF1_SHIFT) & MPIDR_AFFLVL_MASK;
+	cpu_id = (mpidr >> MPIDR_AFF0_SHIFT) & MPIDR_AFFLVL_MASK;
+
+	if (cluster_id >= FVP_CLUSTER_COUNT || cpu_id >= FVP_MAX_CPUS_PER_CLUSTER)
+		return -1;
+
+	if (fvp_pwrc_read_psysr(mpidr) == PSYSR_INVALID)
+		return -1;
+
+	return 0;
+}
+
+/*******************************************************************************
+ * This function implements a part of the critical interface between the psci
+ * generic layer and the platform that allows the former to query the platform
+ * to convert an MPIDR to a unique linear index. An error code (-1) is returned
+ * in case the MPIDR is invalid.
+ ******************************************************************************/
+int platform_get_core_pos(unsigned long mpidr)
+{
+	int rc;
+
+	rc = fvp_check_mpidr(mpidr);
+	if (rc >= 0)
+		return fvp_get_core_pos_common(mpidr);
+	return rc;
 }

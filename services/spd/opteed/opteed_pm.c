@@ -114,7 +114,6 @@ static void opteed_cpu_suspend_handler(uint64_t unused)
 static void opteed_cpu_on_finish_handler(uint64_t unused)
 {
 	int32_t rc = 0;
-	uint64_t mpidr = read_mpidr();
 	uint32_t linear_id = platform_my_core_pos();
 	optee_context_t *optee_ctx = &opteed_sp_context[linear_id];
 	entry_point_info_t optee_on_entrypoint;
@@ -127,7 +126,7 @@ static void opteed_cpu_on_finish_handler(uint64_t unused)
 				optee_ctx);
 
 	/* Initialise this cpu's secure context */
-	cm_init_context(mpidr, &optee_on_entrypoint);
+	cm_init_context(linear_id, &optee_on_entrypoint);
 
 	/* Enter OPTEE */
 	rc = opteed_synchronous_sp_entry(optee_ctx);
@@ -241,4 +240,3 @@ const spd_pm_ops_t opteed_pm = {
 	.svc_system_off = opteed_system_off,
 	.svc_system_reset = opteed_system_reset,
 };
-

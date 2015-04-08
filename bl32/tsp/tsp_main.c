@@ -422,4 +422,3 @@ tsp_args_t *tsp_smc_handler(uint64_t func,
 			    results[1],
 			    0, 0, 0, 0);
 }
-

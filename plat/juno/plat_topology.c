@@ -30,6 +30,7 @@
 
 #include <platform_def.h>
 #include <psci.h>
+#include "juno_private.h"
 
 unsigned int plat_get_pwr_domain_count(unsigned int pwr_lvl,
 						unsigned long mpidr)
@@ -56,4 +57,51 @@ int plat_setup_topology(void)
 {
 	/* Juno todo: Make topology configurable via SCC */
 	return 0;
+}
+
+static unsigned int juno_get_core_count(unsigned int cluster)
+{
+	return (cluster == 1) ? JUNO_CLUSTER1_CORE_COUNT : JUNO_CLUSTER0_CORE_COUNT;
+}
+
+/*******************************************************************************
+ * This function validates an MPIDR by checking whether it represents a CPU in
+ * one of the two clusters present on the Juno platform. An error code (-1) is
+ * returned if an incorrect mpidr is passed.
+ ******************************************************************************/
+unsigned int juno_check_mpidr(unsigned long mpidr)
+{
+	unsigned int cluster_id, cpu_id;
+
+	mpidr &= MPIDR_AFFINITY_MASK;
+
+	if (mpidr & ~(MPIDR_CLUSTER_MASK | MPIDR_CPU_MASK))
+		return -1;
+
+	cluster_id = (mpidr >> MPIDR_AFF1_SHIFT) & MPIDR_AFFLVL_MASK;
+	cpu_id = (mpidr >> MPIDR_AFF0_SHIFT) & MPIDR_AFFLVL_MASK;
+
+	if (cluster_id >= JUNO_CLUSTER_COUNT)
+		return -1;
+
+	if (cpu_id >= juno_get_core_count(cluster_id))
+		return -1;
+
+	return 0;
+}
+
+/*******************************************************************************
+ * This function implements a part of the critical interface between the psci
+ * generic layer and the platform that allows the former to query the platform
+ * to convert an MPIDR to a unique linear index. An error code (-1) is returned
+ * in case the MPIDR is invalid.
+ ******************************************************************************/
+int platform_get_core_pos(unsigned long mpidr)
+{
+	int rc;
+
+	rc = juno_check_mpidr(mpidr);
+	if (rc >= 0)
+		return juno_get_core_pos_common(mpidr);
+	return rc;
 }

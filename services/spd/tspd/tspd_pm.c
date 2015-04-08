@@ -115,7 +115,6 @@ static void tspd_cpu_suspend_handler(uint64_t unused)
 static void tspd_cpu_on_finish_handler(uint64_t unused)
 {
 	int32_t rc = 0;
-	uint64_t mpidr = read_mpidr();
 	uint32_t linear_id = platform_my_core_pos();
 	tsp_context_t *tsp_ctx = &tspd_sp_context[linear_id];
 	entry_point_info_t tsp_on_entrypoint;
@@ -129,7 +128,7 @@ static void tspd_cpu_on_finish_handler(uint64_t unused)
 				tsp_ctx);
 
 	/* Initialise this cpu's secure context */
-	cm_init_context(mpidr, &tsp_on_entrypoint);
+	cm_init_context(linear_id, &tsp_on_entrypoint);
 
 #if TSPD_ROUTE_IRQ_TO_EL3
 	/*
