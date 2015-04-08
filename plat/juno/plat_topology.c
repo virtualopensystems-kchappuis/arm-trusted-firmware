@@ -28,35 +28,47 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "juno_private.h"
 #include <platform_def.h>
 #include <psci.h>
 #include "juno_private.h"
 
-unsigned int plat_get_pwr_domain_count(unsigned int pwr_lvl,
-						unsigned long mpidr)
+/*
+ * The Juno SoC's power domain tree has a single system level power domain
+ * i.e. a single root node. Suspension of this domain through CPU_SUSPEND or
+ * SYSTEM_SUSPEND is not currently supported. As a result, the cluster power
+ * level is treated as the highest. The first entry in the power domain
+ * descriptor specifies the number of cluster power domains i.e. 2.
+ */
+#define JUNO_PWR_DOMAINS_AT_MAX_PWR_LVL	JUNO_CLUSTER_COUNT
+
+/*
+ * The Juno power domain tree descriptor. The cluster power domains are arranged
+ * so that when the PSCI generic code creates the power domain tree, the indices
+ * of the CPU power domain nodes it allocates match the linear indices returned
+ * by platform_get_core_pos() i.e.
+ * A53_0 = 0
+ * A53_1 = 1
+ * A53_2 = 2
+ * A53_3 = 3
+ * A57_0 = 4
+ * A57_0 = 5
+ */
+const unsigned char juno_power_domain_tree_desc[] = {
+	/* No of root nodes */
+	JUNO_PWR_DOMAINS_AT_MAX_PWR_LVL,
+	/* No of children for the first node */
+	JUNO_CLUSTER1_CORE_COUNT,
+	/* No of children for the second node */
+	JUNO_CLUSTER0_CORE_COUNT
+};
+
+/*******************************************************************************
+ * This function returns the JUNO topology tree information.
+ ******************************************************************************/
+const unsigned char *platform_get_power_domain_tree_desc(void)
 {
-	/* Report 1 (absent) power domain  at levels higher that the
-	   cluster level */
-	if (pwr_lvl > JUNO_PWR_LVL1)
-		return 1;
-
-	if (pwr_lvl == JUNO_PWR_LVL1)
-		return 2; /* We have two clusters */
-
-	return mpidr & 0x100 ? 4 : 2; /* 4 cpus in cluster 1, 2 in cluster 0 */
-}
-
-unsigned int plat_get_pwr_domain_state(unsigned int pwr_lvl,
-		unsigned long mpidr)
-{
-	return pwr_lvl <= JUNO_PWR_LVL1 ? PSCI_PWR_DOMAIN_PRESENT :
-						PSCI_PWR_DOMAIN_ABSENT;
-}
-
-int plat_setup_topology(void)
-{
-	/* Juno todo: Make topology configurable via SCC */
-	return 0;
+	return juno_power_domain_tree_desc;
 }
 
 static unsigned int juno_get_core_count(unsigned int cluster)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2014-2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -144,9 +144,6 @@ void fvp_gic_init(void);
 
 /* Declarations for fvp_helpers.S */
 uint32_t fvp_get_core_pos_common(uint64_t);
-
-/* Declarations for fvp_topology.c */
-int fvp_setup_topology(void);
 
 /* Declarations for fvp_io_storage.c */
 void fvp_io_setup(void);

@@ -158,9 +158,6 @@ void plat_cci_init(void);
 /* Declarations for plat_helpers.S */
 uint32_t juno_get_core_pos_common(uint64_t mpidr);
 
-/* Declarations for plat_topology.c */
-int plat_setup_topology(void);
-
 /* Declarations for plat_io_storage.c */
 void io_setup(void);
 int plat_get_image_source(const char *image_name,

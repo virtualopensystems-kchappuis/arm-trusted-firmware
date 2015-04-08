@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -225,9 +225,6 @@ void bl31_platform_setup(void)
 
 	/* Intialize the power controller */
 	fvp_pwrc_setup();
-
-	/* Topologies are best known to the platform. */
-	fvp_setup_topology();
 }
 
 /*******************************************************************************

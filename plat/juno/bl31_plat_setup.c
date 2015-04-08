@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -171,9 +171,6 @@ void bl31_platform_setup(void)
 
 	reg_val = (1 << CNTNSAR_NS_SHIFT(1));
 	mmio_write_32(SYS_TIMCTL_BASE + CNTNSAR, reg_val);
-
-	/* Topologies are best known to the platform. */
-	plat_setup_topology();
 }
 
 /*******************************************************************************
