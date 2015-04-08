@@ -149,7 +149,7 @@ int psci_cpu_on_start(unsigned long target_cpu,
 		/*
 		 * Store the re-entry information for the non-secure world.
 		 */
-		cm_init_context(target_cpu, ep);
+		cm_init_context(platform_get_core_pos(target_cpu), ep);
 	}
 
 exit:

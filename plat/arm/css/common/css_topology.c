@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -28,41 +28,21 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <asm_macros.S>
-#include <cpu_data.h>
+#include <plat_arm.h>
 
-.globl	init_cpu_data_ptr
-.globl	_cpu_data_by_index
+/* Function declaration for helper function defined in css_helpers.S */
+unsigned int css_calc_core_pos(uint64_t mpidr);
 
-/* -----------------------------------------------------------------
- * void init_cpu_data_ptr(void)
- *
- * Initialise the TPIDR_EL3 register to refer to the cpu_data_t
- * for the calling CPU. This must be called before cm_get_cpu_data()
- *
- * This can be called without a valid stack.
- * clobbers: x0, x1, x9, x10
- * -----------------------------------------------------------------
- */
-func init_cpu_data_ptr
-	mov	x10, x30
-	bl	platform_my_core_pos
-	bl	_cpu_data_by_index
-	msr	tpidr_el3, x0
-	ret	x10
-endfunc init_cpu_data_ptr
+/******************************************************************************
+ * This function implements a part of the critical interface between the psci
+ * generic layer and the platform that allows the former to query the platform
+ * to convert an MPIDR to a unique linear index. An error code (-1) is
+ * returned in case the MPIDR is invalid.
+ *****************************************************************************/
+int32_t platform_get_core_pos(uint64_t mpidr)
+{
+	if (arm_check_mpidr(mpidr) == 0)
+		return plat_arm_calc_core_pos(mpidr);
 
-/* -----------------------------------------------------------------
- * cpu_data_t *_cpu_data_by_index(uint32_t cpu_index)
- *
- * Return the cpu_data structure for the CPU with given linear index
- *
- * This can be called without a valid stack.
- * clobbers: x0, x1
- * -----------------------------------------------------------------
- */
-func _cpu_data_by_index
-	adr	x1, percpu_data
-	add	x0, x1, x0, LSL #CPU_DATA_LOG2SIZE
-	ret
-endfunc _cpu_data_by_index
+	return -1;
+}

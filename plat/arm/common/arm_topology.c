@@ -30,7 +30,12 @@
 
 #include <arch.h>
 #include <psci.h>
+#include <plat_arm.h>
 #include <platform_def.h>
+
+#define get_arm_cluster_core_count(mpidr)\
+		(((mpidr) & 0x100) ? PLAT_ARM_CLUSTER1_CORE_COUNT :\
+				PLAT_ARM_CLUSTER0_CORE_COUNT)
 
 /*
  * Weak definitions use fixed topology. Strong definitions could make topology
@@ -39,7 +44,6 @@
 #pragma weak plat_get_pwr_domain_count
 #pragma weak plat_get_pwr_domain_state
 #pragma weak plat_arm_topology_setup
-
 
 unsigned int plat_get_pwr_domain_count(unsigned int pwr_lvl,
 						unsigned long mpidr)
@@ -52,8 +56,7 @@ unsigned int plat_get_pwr_domain_count(unsigned int pwr_lvl,
 	if (pwr_lvl == ARM_PWR_LVL1)
 		return ARM_CLUSTER_COUNT;
 
-	return mpidr & 0x100 ? PLAT_ARM_CLUSTER1_CORE_COUNT :
-				PLAT_ARM_CLUSTER0_CORE_COUNT;
+	return get_arm_cluster_core_count(mpidr);
 }
 
 unsigned int plat_get_pwr_domain_state(unsigned int pwr_lvl,
@@ -65,4 +68,32 @@ unsigned int plat_get_pwr_domain_state(unsigned int pwr_lvl,
 
 void plat_arm_topology_setup(void)
 {
+}
+
+/*******************************************************************************
+ * This function validates an MPIDR by checking whether it falls within the
+ * acceptable bounds. An error code (-1) is returned if an incorrect mpidr
+ * is passed.
+ ******************************************************************************/
+int arm_check_mpidr(uint64_t mpidr)
+{
+	unsigned int cluster_id, cpu_id;
+
+	mpidr &= MPIDR_AFFINITY_MASK;
+
+	if (mpidr & ~(MPIDR_CLUSTER_MASK | MPIDR_CPU_MASK))
+		return -1;
+
+	cluster_id = (mpidr >> MPIDR_AFF1_SHIFT) & MPIDR_AFFLVL_MASK;
+	cpu_id = (mpidr >> MPIDR_AFF0_SHIFT) & MPIDR_AFFLVL_MASK;
+
+	if (cluster_id >= ARM_CLUSTER_COUNT)
+		return -1;
+
+	/* Validate cpu_id by checking whether it represents a CPU in
+	   one of the two clusters present on the platform. */
+	if (cpu_id >= get_arm_cluster_core_count(mpidr))
+		return -1;
+
+	return 0;
 }

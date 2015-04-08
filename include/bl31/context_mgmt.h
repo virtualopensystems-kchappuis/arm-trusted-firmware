@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,13 +43,13 @@ struct entry_point_info;
  * Function & variable prototypes
  ******************************************************************************/
 void cm_init(void);
-void *cm_get_context_by_mpidr(uint64_t mpidr, uint32_t security_state);
+void *cm_get_context_by_index(uint32_t cpu_idx, uint32_t security_state);
 static inline void *cm_get_context(uint32_t security_state);
-void cm_set_context_by_mpidr(uint64_t mpidr,
+void cm_set_context_by_index(uint32_t cpu_idx,
 			     void *context,
 			     uint32_t security_state);
 static inline void cm_set_context(void *context, uint32_t security_state);
-void cm_init_context(uint64_t mpidr, const struct entry_point_info *ep);
+void cm_init_context(uint32_t cpu_idx, const struct entry_point_info *ep);
 void cm_prepare_el3_exit(uint32_t security_state);
 void cm_el1_sysregs_context_save(uint32_t security_state);
 void cm_el1_sysregs_context_restore(uint32_t security_state);

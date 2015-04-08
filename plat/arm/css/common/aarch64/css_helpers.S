@@ -35,9 +35,8 @@
 	.weak	plat_secondary_cold_boot_setup
 	.weak	platform_get_entrypoint
 	.weak	platform_mem_init
-	.globl	platform_get_core_pos
+	.globl	plat_arm_calc_core_pos
 	.weak	platform_is_primary_cpu
-
 
 	/* -----------------------------------------------------
 	 * void plat_secondary_cold_boot_setup (void);
@@ -78,19 +77,21 @@ func platform_get_entrypoint
 	ret	x9
 endfunc platform_get_entrypoint
 
-	/*
-	 * Override the default implementation to swap the cluster order.
-	 * This is necessary in order to match the format of the boot
-	 * information passed by the SCP and read in platform_is_primary_cpu
-	 * below.
+	/* -----------------------------------------------------------
+	 * unsigned int plat_arm_calc_core_pos(uint64_t mpidr)
+	 * Function to calculate the core position by
+	 * swapping the cluster order. This is necessary in order to
+	 * match the format of the boot information passed by the SCP
+	 * and read in platform_is_primary_cpu below.
+	 * -----------------------------------------------------------
 	 */
-func platform_get_core_pos
+func plat_arm_calc_core_pos
 	and	x1, x0, #MPIDR_CPU_MASK
 	and	x0, x0, #MPIDR_CLUSTER_MASK
 	eor	x0, x0, #(1 << MPIDR_AFFINITY_BITS)  // swap cluster order
 	add	x0, x1, x0, LSR #6
 	ret
-endfunc platform_get_core_pos
+endfunc plat_arm_calc_core_pos
 
 	/* -----------------------------------------------------
 	 * void platform_mem_init(void);

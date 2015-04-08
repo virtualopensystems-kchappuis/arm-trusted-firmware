@@ -179,7 +179,6 @@ int32_t opteed_setup(void)
  ******************************************************************************/
 static int32_t opteed_init(void)
 {
-	uint64_t mpidr = read_mpidr();
 	uint32_t linear_id = platform_my_core_pos();
 	optee_context_t *optee_ctx = &opteed_sp_context[linear_id];
 	entry_point_info_t *optee_entry_point;
@@ -192,7 +191,7 @@ static int32_t opteed_init(void)
 	optee_entry_point = bl31_plat_get_next_image_ep_info(SECURE);
 	assert(optee_entry_point);
 
-	cm_init_context(mpidr, optee_entry_point);
+	cm_init_context(linear_id, optee_entry_point);
 
 	/*
 	 * Arrange for an entry into OPTEE. It will be returned via

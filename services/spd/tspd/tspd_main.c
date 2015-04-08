@@ -253,7 +253,6 @@ int32_t tspd_setup(void)
  ******************************************************************************/
 int32_t tspd_init(void)
 {
-	uint64_t mpidr = read_mpidr();
 	uint32_t linear_id = platform_my_core_pos();
 	tsp_context_t *tsp_ctx = &tspd_sp_context[linear_id];
 	entry_point_info_t *tsp_entry_point;
@@ -266,7 +265,7 @@ int32_t tspd_init(void)
 	tsp_entry_point = bl31_plat_get_next_image_ep_info(SECURE);
 	assert(tsp_entry_point);
 
-	cm_init_context(mpidr, tsp_entry_point);
+	cm_init_context(linear_id, tsp_entry_point);
 
 	/*
 	 * Arrange for an entry into the test secure payload. It will be
@@ -467,7 +466,7 @@ uint64_t tspd_smc_handler(uint32_t smc_fid,
 		assert(NON_SECURE ==
 				GET_SECURITY_STATE(next_image_info->h.attr));
 
-		cm_init_context(read_mpidr_el1(), next_image_info);
+		cm_init_context(linear_id, next_image_info);
 		cm_prepare_el3_exit(NON_SECURE);
 		SMC_RET0(cm_get_context(NON_SECURE));
 #else

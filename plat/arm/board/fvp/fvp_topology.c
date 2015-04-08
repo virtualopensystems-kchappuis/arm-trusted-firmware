@@ -30,11 +30,13 @@
 
 #include <arch.h>
 #include <assert.h>
+#include <platform.h>
 #include <platform_def.h>
 /* TODO: Reusing psci error codes & state information. Get our own! */
 #include <psci.h>
 #include "drivers/pwrc/fvp_pwrc.h"
 #include "fvp_def.h"
+#include "fvp_private.h"
 
 /* We treat '255' as an invalid power domain instance */
 #define INVALID_PWR_DOMAIN	0xff
@@ -190,7 +192,7 @@ unsigned int plat_get_pwr_domain_state(unsigned int pwr_lvl,
  * the FVP flavour its running on. We construct all the mpidrs we can handle
  * and rely on the PWRC.PSYSR to flag absent cpus when their status is queried.
  ******************************************************************************/
-int plat_arm_topology_setup(void)
+void plat_arm_topology_setup(void)
 {
 	unsigned char pwrlvl0, pwrlvl1, pwr_domain_state, pwrlvl0_offset = 0;
 	unsigned long mpidr;
@@ -241,5 +243,21 @@ int plat_arm_topology_setup(void)
 	fvp_pwrlvl1_topology_map[pwrlvl1 - 1].sibling = INVALID_PWR_DOMAIN;
 
 	topology_setup_done = 1;
-	return 0;
+}
+
+/*******************************************************************************
+ * This function implements a part of the critical interface between the psci
+ * generic layer and the platform that allows the former to query the platform
+ * to convert an MPIDR to a unique linear index. An error code (-1) is returned
+ * in case the MPIDR is invalid.
+ ******************************************************************************/
+int platform_get_core_pos(unsigned long mpidr)
+{
+	if (arm_check_mpidr(mpidr) == -1)
+		return -1;
+
+	if (fvp_pwrc_read_psysr(mpidr) == PSYSR_INVALID)
+		return -1;
+
+	return plat_arm_calc_core_pos(mpidr);
 }

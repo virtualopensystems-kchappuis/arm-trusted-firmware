@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -69,22 +69,22 @@ void cm_init(void)
  * for the CPU identified by MPIDR that was set as the context for the specified
  * security state. NULL is returned if no such structure has been specified.
  ******************************************************************************/
-void *cm_get_context_by_mpidr(uint64_t mpidr, uint32_t security_state)
+void *cm_get_context_by_index(uint32_t cpu_idx, uint32_t security_state)
 {
 	assert(sec_state_is_valid(security_state));
 
-	return get_cpu_data_by_mpidr(mpidr, cpu_context[security_state]);
+	return get_cpu_data_by_index(cpu_idx, cpu_context[security_state]);
 }
 
 /*******************************************************************************
  * This function sets the pointer to the current 'cpu_context' structure for the
- * specified security state for the CPU identified by MPIDR
+ * specified security state for the CPU identified by CPU index.
  ******************************************************************************/
-void cm_set_context_by_mpidr(uint64_t mpidr, void *context, uint32_t security_state)
+void cm_set_context_by_index(uint32_t cpu_idx, void *context, uint32_t security_state)
 {
 	assert(sec_state_is_valid(security_state));
 
-	set_cpu_data_by_mpidr(mpidr, cpu_context[security_state], context);
+	set_cpu_data_by_index(cpu_idx, cpu_context[security_state], context);
 }
 
 /*******************************************************************************
@@ -129,7 +129,7 @@ static inline void cm_set_next_context(void *context)
  * el3_exit(). For Secure-EL1 cm_prepare_el3_exit() is equivalent to
  * cm_e1_sysreg_context_restore().
  ******************************************************************************/
-void cm_init_context(uint64_t mpidr, const entry_point_info_t *ep)
+void cm_init_context(unsigned int cpu_idx, const entry_point_info_t *ep)
 {
 	uint32_t security_state;
 	cpu_context_t *ctx;
@@ -139,7 +139,7 @@ void cm_init_context(uint64_t mpidr, const entry_point_info_t *ep)
 	unsigned long sctlr_elx;
 
 	security_state = GET_SECURITY_STATE(ep->h.attr);
-	ctx = cm_get_context_by_mpidr(mpidr, security_state);
+	ctx = cm_get_context_by_index(cpu_idx, security_state);
 	assert(ctx);
 
 	/* Clear any residual register values from the context */

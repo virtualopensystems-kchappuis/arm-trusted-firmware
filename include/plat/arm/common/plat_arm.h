@@ -161,6 +161,9 @@ void arm_tzc_setup(void);
 /* PM utility functions */
 int arm_validate_power_state(unsigned int power_state);
 
+/* Topology utility function */
+int arm_check_mpidr(uint64_t mpidr);
+
 /* BL1 utility functions */
 void arm_bl1_early_platform_setup(void);
 void arm_bl1_platform_setup(void);
@@ -198,6 +201,6 @@ int plat_arm_get_alt_image_source(
 	const uintptr_t image_spec,
 	uintptr_t *dev_handle);
 void plat_arm_topology_setup(void);
-
+unsigned int plat_arm_calc_core_pos(uint64_t mpidr);
 
 #endif /* __PLAT_ARM_H__ */
