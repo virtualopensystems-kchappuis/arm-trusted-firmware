@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -150,7 +150,6 @@ func bl1_entrypoint
 	 * primary cpu is running at the moment.
 	 * --------------------------------------------
 	 */
-	mrs	x0, mpidr_el1
 	bl	platform_set_stack
 
 	/* ---------------------------------------------

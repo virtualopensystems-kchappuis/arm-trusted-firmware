@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -40,6 +40,7 @@
 	.globl	plat_crash_console_putc
 	.globl	plat_report_exception
 	.globl	plat_reset_handler
+	.globl	platform_my_core_pos
 	.globl	platform_get_core_pos
 	.globl	platform_mem_init
 
@@ -94,8 +95,20 @@ func plat_report_exception
 	ret
 endfunc plat_report_exception
 
-	/*
+	/* -----------------------------------------------------
+	 * uint32_t platform_my_core_pos()
+	 * Call platform_get_core_pos() to return the index of
+	 * the calling CPU.
+	 * -----------------------------------------------------
+	 */
+func platform_my_core_pos
+	mrs	x0, mpidr_el1
+	b	platform_get_core_pos
+endfunc platform_my_core_pos
+
+	/* -----------------------------------------------------
 	 * Return 0 to 3 for the A53s and 4 or 5 for the A57s
+	 * -----------------------------------------------------
 	 */
 func platform_get_core_pos
 	and	x1, x0, #MPIDR_CPU_MASK

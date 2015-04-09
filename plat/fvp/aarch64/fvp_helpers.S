@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,6 +43,7 @@
 	.globl	platform_is_primary_cpu
 	.globl	plat_crash_console_init
 	.globl	plat_crash_console_putc
+	.globl	platform_my_core_pos
 
 	.macro	fvp_choose_gicmmap  param1, param2, x_tmp, w_tmp, res
 	ldr	\x_tmp, =VE_SYSREGS_BASE + V2M_SYS_ID
@@ -52,6 +53,16 @@
 	csel	\res, \param1, \param2, eq
 	.endm
 
+	/* -----------------------------------------------------
+	 *  uint32_t platform_my_core_pos(void);
+	 *  This function uses the weak platform_get_core_pos()
+	 *  definition to get the index of the calling CPU.
+	 * -----------------------------------------------------
+	 */
+func platform_my_core_pos
+	mrs	x0, mpidr_el1
+	b	platform_get_core_pos
+endfunc platform_my_core_pos
 	/* -----------------------------------------------------
 	 * void plat_secondary_cold_boot_setup (void);
 	 *
@@ -122,7 +133,7 @@ endfunc plat_secondary_cold_boot_setup
 	 */
 func platform_get_entrypoint
 	mov	x9, x30 // lr
-	mov	x2, x0
+	mrs	x2, mpidr_el1
 	ldr	x1, =PWRC_BASE
 	str	w2, [x1, #PSYSR_OFF]
 	ldr	w2, [x1, #PSYSR_OFF]
@@ -142,7 +153,7 @@ warm_reset:
 	 * ---------------------------------------------
 	 */
 	ldr	x10, =MBOX_BASE
-	bl	platform_get_core_pos
+	bl	platform_my_core_pos
 	lsl	x0, x0, #CACHE_WRITEBACK_SHIFT
 	ldr	x0, [x10, x0]
 	cbz	x0, _panic

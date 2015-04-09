@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -78,7 +78,6 @@ static tsp_args_t *set_smc_args(uint64_t arg0,
 			     uint64_t arg6,
 			     uint64_t arg7)
 {
-	uint64_t mpidr = read_mpidr();
 	uint32_t linear_id;
 	tsp_args_t *pcpu_smc_args;
 
@@ -86,7 +85,7 @@ static tsp_args_t *set_smc_args(uint64_t arg0,
 	 * Return to Secure Monitor by raising an SMC. The results of the
 	 * service are passed as an arguments to the SMC
 	 */
-	linear_id = platform_get_core_pos(mpidr);
+	linear_id = platform_my_core_pos();
 	pcpu_smc_args = &tsp_smc_args[linear_id];
 	write_sp_arg(pcpu_smc_args, TSP_ARG0, arg0);
 	write_sp_arg(pcpu_smc_args, TSP_ARG1, arg1);
@@ -113,8 +112,7 @@ uint64_t tsp_main(void)
 	INFO("TSP: Total memory size : 0x%lx bytes\n",
 			 BL32_TOTAL_LIMIT - BL32_TOTAL_BASE);
 
-	uint64_t mpidr = read_mpidr();
-	uint32_t linear_id = platform_get_core_pos(mpidr);
+	uint32_t linear_id = platform_my_core_pos();
 
 	/* Initialize the platform */
 	tsp_platform_setup();
@@ -129,7 +127,8 @@ uint64_t tsp_main(void)
 
 #if LOG_LEVEL >= LOG_LEVEL_INFO
 	spin_lock(&console_lock);
-	INFO("TSP: cpu 0x%lx: %d smcs, %d erets %d cpu on requests\n", mpidr,
+	INFO("TSP: cpu 0x%lx: %d smcs, %d erets %d cpu on requests\n",
+	     read_mpidr(),
 	     tsp_stats[linear_id].smc_count,
 	     tsp_stats[linear_id].eret_count,
 	     tsp_stats[linear_id].cpu_on_count);
@@ -145,8 +144,7 @@ uint64_t tsp_main(void)
  ******************************************************************************/
 tsp_args_t *tsp_cpu_on_main(void)
 {
-	uint64_t mpidr = read_mpidr();
-	uint32_t linear_id = platform_get_core_pos(mpidr);
+	uint32_t linear_id = platform_my_core_pos();
 
 	/* Initialize secure/applications state here */
 	tsp_generic_timer_start();
@@ -158,8 +156,9 @@ tsp_args_t *tsp_cpu_on_main(void)
 
 #if LOG_LEVEL >= LOG_LEVEL_INFO
 	spin_lock(&console_lock);
-	INFO("TSP: cpu 0x%lx turned on\n", mpidr);
-	INFO("TSP: cpu 0x%lx: %d smcs, %d erets %d cpu on requests\n", mpidr,
+	INFO("TSP: cpu 0x%lx turned on\n", read_mpidr());
+	INFO("TSP: cpu 0x%lx: %d smcs, %d erets %d cpu on requests\n",
+		read_mpidr(),
 		tsp_stats[linear_id].smc_count,
 		tsp_stats[linear_id].eret_count,
 		tsp_stats[linear_id].cpu_on_count);
@@ -182,8 +181,7 @@ tsp_args_t *tsp_cpu_off_main(uint64_t arg0,
 			   uint64_t arg6,
 			   uint64_t arg7)
 {
-	uint64_t mpidr = read_mpidr();
-	uint32_t linear_id = platform_get_core_pos(mpidr);
+	uint32_t linear_id = platform_my_core_pos();
 
 	/*
 	 * This cpu is being turned off, so disable the timer to prevent the
@@ -199,8 +197,9 @@ tsp_args_t *tsp_cpu_off_main(uint64_t arg0,
 
 #if LOG_LEVEL >= LOG_LEVEL_INFO
 	spin_lock(&console_lock);
-	INFO("TSP: cpu 0x%lx off request\n", mpidr);
-	INFO("TSP: cpu 0x%lx: %d smcs, %d erets %d cpu off requests\n", mpidr,
+	INFO("TSP: cpu 0x%lx off request\n", read_mpidr());
+	INFO("TSP: cpu 0x%lx: %d smcs, %d erets %d cpu off requests\n",
+		read_mpidr(),
 		tsp_stats[linear_id].smc_count,
 		tsp_stats[linear_id].eret_count,
 		tsp_stats[linear_id].cpu_off_count);
@@ -225,8 +224,7 @@ tsp_args_t *tsp_cpu_suspend_main(uint64_t arg0,
 			       uint64_t arg6,
 			       uint64_t arg7)
 {
-	uint64_t mpidr = read_mpidr();
-	uint32_t linear_id = platform_get_core_pos(mpidr);
+	uint32_t linear_id = platform_my_core_pos();
 
 	/*
 	 * Save the time context and disable it to prevent the secure timer
@@ -243,7 +241,7 @@ tsp_args_t *tsp_cpu_suspend_main(uint64_t arg0,
 #if LOG_LEVEL >= LOG_LEVEL_INFO
 	spin_lock(&console_lock);
 	INFO("TSP: cpu 0x%lx: %d smcs, %d erets %d cpu suspend requests\n",
-		mpidr,
+		read_mpidr(),
 		tsp_stats[linear_id].smc_count,
 		tsp_stats[linear_id].eret_count,
 		tsp_stats[linear_id].cpu_suspend_count);
@@ -268,8 +266,7 @@ tsp_args_t *tsp_cpu_resume_main(uint64_t suspend_level,
 			      uint64_t arg6,
 			      uint64_t arg7)
 {
-	uint64_t mpidr = read_mpidr();
-	uint32_t linear_id = platform_get_core_pos(mpidr);
+	uint32_t linear_id = platform_my_core_pos();
 
 	/* Restore the generic timer context */
 	tsp_generic_timer_restore();
@@ -282,9 +279,9 @@ tsp_args_t *tsp_cpu_resume_main(uint64_t suspend_level,
 #if LOG_LEVEL >= LOG_LEVEL_INFO
 	spin_lock(&console_lock);
 	INFO("TSP: cpu 0x%lx resumed. suspend level %ld\n",
-		mpidr, suspend_level);
+		read_mpidr(), suspend_level);
 	INFO("TSP: cpu 0x%lx: %d smcs, %d erets %d cpu suspend requests\n",
-		mpidr,
+		read_mpidr(),
 		tsp_stats[linear_id].smc_count,
 		tsp_stats[linear_id].eret_count,
 		tsp_stats[linear_id].cpu_suspend_count);
@@ -307,8 +304,7 @@ tsp_args_t *tsp_system_off_main(uint64_t arg0,
 				uint64_t arg6,
 				uint64_t arg7)
 {
-	uint64_t mpidr = read_mpidr();
-	uint32_t linear_id = platform_get_core_pos(mpidr);
+	uint32_t linear_id = platform_my_core_pos();
 
 	/* Update this cpu's statistics */
 	tsp_stats[linear_id].smc_count++;
@@ -316,8 +312,8 @@ tsp_args_t *tsp_system_off_main(uint64_t arg0,
 
 #if LOG_LEVEL >= LOG_LEVEL_INFO
 	spin_lock(&console_lock);
-	INFO("TSP: cpu 0x%lx SYSTEM_OFF request\n", mpidr);
-	INFO("TSP: cpu 0x%lx: %d smcs, %d erets requests\n", mpidr,
+	INFO("TSP: cpu 0x%lx SYSTEM_OFF request\n", read_mpidr());
+	INFO("TSP: cpu 0x%lx: %d smcs, %d erets requests\n", read_mpidr(),
 	     tsp_stats[linear_id].smc_count,
 	     tsp_stats[linear_id].eret_count);
 	spin_unlock(&console_lock);
@@ -340,8 +336,7 @@ tsp_args_t *tsp_system_reset_main(uint64_t arg0,
 				uint64_t arg6,
 				uint64_t arg7)
 {
-	uint64_t mpidr = read_mpidr();
-	uint32_t linear_id = platform_get_core_pos(mpidr);
+	uint32_t linear_id = platform_my_core_pos();
 
 	/* Update this cpu's statistics */
 	tsp_stats[linear_id].smc_count++;
@@ -349,8 +344,8 @@ tsp_args_t *tsp_system_reset_main(uint64_t arg0,
 
 #if LOG_LEVEL >= LOG_LEVEL_INFO
 	spin_lock(&console_lock);
-	INFO("TSP: cpu 0x%lx SYSTEM_RESET request\n", mpidr);
-	INFO("TSP: cpu 0x%lx: %d smcs, %d erets requests\n", mpidr,
+	INFO("TSP: cpu 0x%lx SYSTEM_RESET request\n", read_mpidr());
+	INFO("TSP: cpu 0x%lx: %d smcs, %d erets requests\n", read_mpidr(),
 	     tsp_stats[linear_id].smc_count,
 	     tsp_stats[linear_id].eret_count);
 	spin_unlock(&console_lock);
@@ -377,17 +372,16 @@ tsp_args_t *tsp_smc_handler(uint64_t func,
 {
 	uint64_t results[2];
 	uint64_t service_args[2];
-	uint64_t mpidr = read_mpidr();
-	uint32_t linear_id = platform_get_core_pos(mpidr);
+	uint32_t linear_id = platform_my_core_pos();
 
 	/* Update this cpu's statistics */
 	tsp_stats[linear_id].smc_count++;
 	tsp_stats[linear_id].eret_count++;
 
-	INFO("TSP: cpu 0x%lx received %s smc 0x%lx\n", mpidr,
+	INFO("TSP: cpu 0x%lx received %s smc 0x%lx\n", read_mpidr(),
 		((func >> 31) & 1) == 1 ? "fast" : "standard",
 		func);
-	INFO("TSP: cpu 0x%lx: %d smcs, %d erets\n", mpidr,
+	INFO("TSP: cpu 0x%lx: %d smcs, %d erets\n", read_mpidr(),
 		tsp_stats[linear_id].smc_count,
 		tsp_stats[linear_id].eret_count);
 

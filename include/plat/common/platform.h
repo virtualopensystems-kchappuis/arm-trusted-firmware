@@ -54,6 +54,7 @@ int plat_get_image_source(const char *image_name,
 			uintptr_t *dev_handle,
 			uintptr_t *image_spec);
 unsigned long plat_get_ns_image_entrypoint(void);
+uint32_t platform_my_core_pos(void);
 
 /*******************************************************************************
  * Mandatory interrupt management functions
