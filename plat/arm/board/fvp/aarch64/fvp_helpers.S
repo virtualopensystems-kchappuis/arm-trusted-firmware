@@ -119,7 +119,7 @@ endfunc plat_secondary_cold_boot_setup
 	 */
 func platform_get_entrypoint
 	mov	x9, x30 // lr
-	mov	x2, x0
+	mrs	x2, mpidr_el1
 	ldr	x1, =PWRC_BASE
 	str	w2, [x1, #PSYSR_OFF]
 	ldr	w2, [x1, #PSYSR_OFF]
@@ -139,7 +139,7 @@ warm_reset:
 	 * ---------------------------------------------
 	 */
 	ldr	x10, =MBOX_BASE
-	bl	platform_get_core_pos
+	bl	platform_my_core_pos
 	lsl	x0, x0, #ARM_CACHE_WRITEBACK_SHIFT
 	ldr	x0, [x10, x0]
 	cbz	x0, _panic

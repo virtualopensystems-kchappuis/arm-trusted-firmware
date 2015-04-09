@@ -30,10 +30,21 @@
 #include <asm_macros.S>
 #include <platform_def.h>
 
-
+	.weak	platform_my_core_pos
 	.globl	plat_crash_console_init
 	.globl	plat_crash_console_putc
 
+
+	/* -----------------------------------------------------
+	 *  unsigned int platform_my_core_pos(void)
+	 *  This function uses the platform_get_core_pos()
+	 *  definition to get the index of the calling CPU.
+	 * -----------------------------------------------------
+	 */
+func platform_my_core_pos
+	mrs	x0, mpidr_el1
+	b	platform_get_core_pos
+endfunc platform_my_core_pos
 
 	/* ---------------------------------------------
 	 * int plat_crash_console_init(void)

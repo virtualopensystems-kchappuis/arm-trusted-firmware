@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -52,8 +52,7 @@ static void tspd_cpu_on_handler(uint64_t target_cpu)
 static int32_t tspd_cpu_off_handler(uint64_t unused)
 {
 	int32_t rc = 0;
-	uint64_t mpidr = read_mpidr();
-	uint32_t linear_id = platform_get_core_pos(mpidr);
+	uint32_t linear_id = platform_my_core_pos();
 	tsp_context_t *tsp_ctx = &tspd_sp_context[linear_id];
 
 	assert(tsp_vectors);
@@ -86,8 +85,7 @@ static int32_t tspd_cpu_off_handler(uint64_t unused)
 static void tspd_cpu_suspend_handler(uint64_t unused)
 {
 	int32_t rc = 0;
-	uint64_t mpidr = read_mpidr();
-	uint32_t linear_id = platform_get_core_pos(mpidr);
+	uint32_t linear_id = platform_my_core_pos();
 	tsp_context_t *tsp_ctx = &tspd_sp_context[linear_id];
 
 	assert(tsp_vectors);
@@ -118,7 +116,7 @@ static void tspd_cpu_on_finish_handler(uint64_t unused)
 {
 	int32_t rc = 0;
 	uint64_t mpidr = read_mpidr();
-	uint32_t linear_id = platform_get_core_pos(mpidr);
+	uint32_t linear_id = platform_my_core_pos();
 	tsp_context_t *tsp_ctx = &tspd_sp_context[linear_id];
 	entry_point_info_t tsp_on_entrypoint;
 
@@ -163,8 +161,7 @@ static void tspd_cpu_on_finish_handler(uint64_t unused)
 static void tspd_cpu_suspend_finish_handler(uint64_t suspend_level)
 {
 	int32_t rc = 0;
-	uint64_t mpidr = read_mpidr();
-	uint32_t linear_id = platform_get_core_pos(mpidr);
+	uint32_t linear_id = platform_my_core_pos();
 	tsp_context_t *tsp_ctx = &tspd_sp_context[linear_id];
 
 	assert(tsp_vectors);
@@ -203,8 +200,7 @@ static int32_t tspd_cpu_migrate_info(uint64_t *resident_cpu)
  ******************************************************************************/
 static void tspd_system_off(void)
 {
-	uint64_t mpidr = read_mpidr();
-	uint32_t linear_id = platform_get_core_pos(mpidr);
+	uint32_t linear_id = platform_my_core_pos();
 	tsp_context_t *tsp_ctx = &tspd_sp_context[linear_id];
 
 	assert(tsp_vectors);
@@ -224,8 +220,7 @@ static void tspd_system_off(void)
  ******************************************************************************/
 static void tspd_system_reset(void)
 {
-	uint64_t mpidr = read_mpidr();
-	uint32_t linear_id = platform_get_core_pos(mpidr);
+	uint32_t linear_id = platform_my_core_pos();
 	tsp_context_t *tsp_ctx = &tspd_sp_context[linear_id];
 
 	assert(tsp_vectors);

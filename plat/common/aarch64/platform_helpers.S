@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -42,7 +42,7 @@
 	.weak	plat_disable_acp
 
 	/* -----------------------------------------------------
-	 *  int platform_get_core_pos(int mpidr);
+	 *  unsigned int platform_get_core_pos(int mpidr)
 	 *  With this function: CorePos = (ClusterId * 4) +
 	 *  				  CoreId
 	 * -----------------------------------------------------

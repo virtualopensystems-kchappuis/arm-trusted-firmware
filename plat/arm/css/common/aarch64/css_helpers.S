@@ -55,7 +55,7 @@ cb_panic:
 endfunc plat_secondary_cold_boot_setup
 
 	/* -----------------------------------------------------
-	 * void platform_get_entrypoint (unsigned int mpid);
+	 * void platform_get_entrypoint ();
 	 *
 	 * Main job of this routine is to distinguish between
 	 * a cold and warm boot.
@@ -71,7 +71,7 @@ endfunc plat_secondary_cold_boot_setup
 	 */
 func platform_get_entrypoint
 	mov	x9, x30 // lr
-	bl	platform_get_core_pos
+	bl	platform_my_core_pos
 	ldr	x1, =TRUSTED_MAILBOXES_BASE
 	lsl	x0, x0, #TRUSTED_MAILBOX_SHIFT
 	ldr	x0, [x1, x0]
@@ -104,15 +104,15 @@ func platform_mem_init
 endfunc platform_mem_init
 
 	/* -----------------------------------------------------
-	 * unsigned int platform_is_primary_cpu (unsigned int mpid);
+	 * unsigned int platform_is_primary_cpu (void);
 	 *
-	 * Given the mpidr say whether this cpu is the primary
+	 * Find out whether the current cpu is the primary
 	 * cpu (applicable ony after a cold boot)
 	 * -----------------------------------------------------
 	 */
 func platform_is_primary_cpu
 	mov	x9, x30
-	bl	platform_get_core_pos
+	bl	platform_my_core_pos
 	ldr	x1, =SCP_BOOT_CFG_ADDR
 	ldr	x1, [x1]
 	ubfx	x1, x1, #PRIMARY_CPU_SHIFT, #PRIMARY_CPU_MASK

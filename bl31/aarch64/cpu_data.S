@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2014-2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -47,8 +47,8 @@
  */
 func init_cpu_data_ptr
 	mov	x10, x30
-	mrs	x0, mpidr_el1
-	bl	_cpu_data_by_mpidr
+	bl	platform_my_core_pos
+	bl	_cpu_data_by_index
 	msr	tpidr_el3, x0
 	ret	x10
 endfunc init_cpu_data_ptr
