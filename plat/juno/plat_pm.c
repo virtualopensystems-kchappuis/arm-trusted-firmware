@@ -41,6 +41,25 @@
 #include "juno_private.h"
 #include "scpi.h"
 
+#if RECOM_STATE_ID_ENC
+/*
+ *  The table storing the valid idle power states. Ensure that the
+ *  array entries are populated in ascending order of state-id to
+ *  enable us to use binary search during power state validation.
+ */
+const uint32_t juno_idle_states[] = {
+	/* State-id - 0x01 */
+	juno_make_pwr_state(JUNO_PM_RUN, JUNO_PM_RET,
+			JUNO_PWR_LVL0, PSTATE_TYPE_STANDBY),
+	/* State-id - 0x02 */
+	juno_make_pwr_state(JUNO_PM_RUN, JUNO_PM_OFF,
+			JUNO_PWR_LVL0, PSTATE_TYPE_POWERDOWN),
+	/* State-id - 0x22 */
+	juno_make_pwr_state(JUNO_PM_OFF, JUNO_PM_OFF,
+			JUNO_PWR_LVL1, PSTATE_TYPE_POWERDOWN),
+};
+#endif /* __RECOM_STATE_ID_ENC__ */
+
 /*******************************************************************************
  * Private Juno function to program the mailbox for a cpu before it is released
  * from reset.
@@ -56,6 +75,7 @@ static void juno_program_mailbox(uint64_t mpidr, uint64_t address)
 	flush_dcache_range(mbox, sizeof(mbox));
 }
 
+#if !RECOM_STATE_ID_ENC
 /*******************************************************************************
  * Juno handler called to check the validity of the power state parameter.
  ******************************************************************************/
@@ -94,7 +114,48 @@ int32_t juno_validate_power_state(unsigned int power_state,
 
 	return PSCI_E_SUCCESS;
 }
+#else
 
+/*******************************************************************************
+ * JUNO handler called to check the validity of the power state parameter. The
+ * power state parameter must encode composite power state.
+ ******************************************************************************/
+int juno_validate_power_state(unsigned int power_state,
+				psci_power_state_t *req_state)
+{
+	unsigned int state_id;
+	int i, idle_states_num =  sizeof(juno_idle_states)/
+					sizeof(juno_idle_states[0]);
+
+	assert(req_state);
+
+	/*
+	 *  Currently we are using a linear search for finding the matching
+	 *  entry in the idle power state array. This can be made a binary
+	 *  search if the number of entries justify the additional complexity.
+	 */
+	for (i = 0; i < idle_states_num; i++) {
+		if (power_state == juno_idle_states[i])
+			break;
+	}
+
+	/* Return error if entry not found in the idle state array */
+	if (i == idle_states_num)
+		return PSCI_E_INVALID_PARAMS;
+
+	i = 0;
+	state_id = psci_get_pstate_id(power_state);
+
+	/* Parse the State ID and populate the state info parameter */
+	while (state_id) {
+		req_state->pwr_domain_state[i++] = state_id &
+						JUNO_LOCAL_PSTATE_MASK;
+		state_id >>= JUNO_LOCAL_PSTATE_WIDTH;
+	}
+
+	return PSCI_E_SUCCESS;
+}
+#endif
 
 /*******************************************************************************
  * Juno handler called when a power domain is about to be turned on. The

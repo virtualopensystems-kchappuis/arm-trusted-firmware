@@ -44,6 +44,25 @@
 #include "fvp_def.h"
 #include "fvp_private.h"
 
+#if RECOM_STATE_ID_ENC
+/*
+ *  The table storing the valid idle power states. Ensure that the
+ *  array entries are populated in ascending order of state-id to
+ *  enable us to use binary search during power state validation.
+ */
+const uint32_t fvp_idle_states[] = {
+	/* State-id - 0x01 */
+	fvp_make_pwr_state(FVP_PM_RUN, FVP_PM_RET,
+			FVP_PWR_LVL0, PSTATE_TYPE_STANDBY),
+	/* State-id - 0x02 */
+	fvp_make_pwr_state(FVP_PM_RUN, FVP_PM_OFF,
+			FVP_PWR_LVL0, PSTATE_TYPE_POWERDOWN),
+	/* State-id - 0x22 */
+	fvp_make_pwr_state(FVP_PM_OFF, FVP_PM_OFF,
+			FVP_PWR_LVL1, PSTATE_TYPE_POWERDOWN),
+};
+#endif /* __RECOM_STATE_ID_ENC__ */
+
 /*******************************************************************************
  * Private FVP function to program the mailbox for a cpu before it is released
  * from reset.
@@ -274,10 +293,12 @@ static void __dead2 fvp_system_reset(void)
 	panic();
 }
 
+#if !RECOM_STATE_ID_ENC
 /*******************************************************************************
  * FVP handler called to check the validity of the power state parameter.
  ******************************************************************************/
-int fvp_validate_power_state(unsigned int power_state, psci_power_state_t *req_state)
+int fvp_validate_power_state(unsigned int power_state,
+				psci_power_state_t *req_state)
 {
 	int pstate = psci_get_pstate_type(power_state);
 	int pwr_lvl = psci_get_pstate_pwrlvl(power_state);
@@ -311,6 +332,48 @@ int fvp_validate_power_state(unsigned int power_state, psci_power_state_t *req_s
 
 	return PSCI_E_SUCCESS;
 }
+
+#else
+/*******************************************************************************
+ * FVP handler called to check the validity of the power state parameter. The
+ * power state parameter has to be a composite power state.
+ ******************************************************************************/
+int fvp_validate_power_state(unsigned int power_state,
+				psci_power_state_t *req_state)
+{
+	unsigned int state_id;
+	int i, idle_states_num =  sizeof(fvp_idle_states)/
+					sizeof(fvp_idle_states[0]);
+
+	assert(req_state);
+
+	/*
+	 *  Currently we are using a linear search for finding the matching
+	 *  entry in the idle power state array. This can be made a binary
+	 *  search if the number of entries justify the additional complexity.
+	 */
+	for (i = 0; i < idle_states_num; i++) {
+		if (power_state == fvp_idle_states[i])
+			break;
+	}
+
+	/* Return error if entry not found in the idle state array */
+	if (i == idle_states_num)
+		return PSCI_E_INVALID_PARAMS;
+
+	i = 0;
+	state_id = psci_get_pstate_id(power_state);
+
+	/* Parse the State ID and populate the state info parameter */
+	while (state_id) {
+		req_state->pwr_domain_state[i++] = state_id &
+						FVP_LOCAL_PSTATE_MASK;
+		state_id >>= FVP_LOCAL_PSTATE_WIDTH;
+	}
+
+	return PSCI_E_SUCCESS;
+}
+#endif /* __RECOM_STATE_ID_ENC__ */
 
 /*******************************************************************************
  * Export the platform handlers to enable psci to invoke them

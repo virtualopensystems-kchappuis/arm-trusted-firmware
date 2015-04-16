@@ -44,6 +44,23 @@ endif
 # Process flags
 $(eval $(call add_define,PLAT_TSP_LOCATION_ID))
 
+# On Juno, for the original power-state parameter, the State-ID can be encoded according
+# to the recommended encoding or zero. This flag determines which State-ID encoding
+# to be parsed.
+RECOM_STATE_ID_ENC := 0
+
+# If the PSCI_EXTENDED_STATE_ID is set, then the recommended state ID need to be used.
+# Else throw a build error.
+ifeq (${PSCI_EXTENDED_STATE_ID}, 1)
+  ifeq (${RECOM_STATE_ID_ENC}, 0)
+    $(error "Incompatible STATE_ID build option specified")
+  endif
+endif
+
+# Process RECOM_STATE_ID_ENC flag
+$(eval $(call assert_boolean,RECOM_STATE_ID_ENC))
+$(eval $(call add_define,RECOM_STATE_ID_ENC))
+
 
 PLAT_INCLUDES		:=	-Iplat/juno/include/
 

@@ -112,6 +112,29 @@ CASSERT(PLAT_PCPU_DATA_SIZE == sizeof(fvp_cpu_data_t),	\
 
 #endif /* __USE_COHERENT_MEM__ */
 
+#if RECOM_STATE_ID_ENC
+/*
+ * Macros used to parse state information from State-ID if it is using the
+ * recommended encoding for State-ID.
+ */
+#define FVP_LOCAL_PSTATE_MASK		0xF
+#define FVP_LOCAL_PSTATE_WIDTH		4
+
+/* Macro to construct the power state */
+#if PSCI_EXTENDED_STATE_ID
+#define fvp_make_pwr_state(lvl1_state, lvl0_state, pwr_lvl, type) 	\
+		(((lvl1_state << FVP_LOCAL_PSTATE_WIDTH | lvl0_state) 	\
+						<< PSTATE_ID_SHIFT) | 	\
+		(type << PSTATE_TYPE_SHIFT))
+#else
+#define fvp_make_pwr_state(lvl1_state, lvl0_state, pwr_lvl, type)	\
+		(((lvl1_state << FVP_LOCAL_PSTATE_WIDTH | lvl0_state)	\
+						<< PSTATE_ID_SHIFT) |	\
+		(pwr_lvl << PSTATE_PWR_LVL_SHIFT) |			\
+		(type << PSTATE_TYPE_SHIFT))
+#endif /* __PSCI_EXTENDED_STATE_ID__ */
+#endif /* __RECOM_STATE_ID_ENC__ */
+
 /*******************************************************************************
  * Function and variable prototypes
  ******************************************************************************/
