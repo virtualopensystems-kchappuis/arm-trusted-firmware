@@ -42,11 +42,11 @@ int arm_validate_power_state(unsigned int power_state)
 	/* Sanity check the requested state */
 	if (psci_get_pstate_type(power_state) == PSTATE_TYPE_STANDBY) {
 		/*
-		 * It's possible to enter standby only on affinity level 0
+		 * It's possible to enter standby only on power level 0
 		 * (i.e. a CPU on ARM standard platforms).
-		 * Ignore any other affinity level.
+		 * Ignore any other power level.
 		 */
-		if (psci_get_pstate_afflvl(power_state) != MPIDR_AFFLVL0)
+		if (psci_get_pstate_pwrlvl(power_state) != ARM_PWR_LVL0)
 			return PSCI_E_INVALID_PARAMS;
 	}
 

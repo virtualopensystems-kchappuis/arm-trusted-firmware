@@ -57,18 +57,18 @@ static void css_program_mailbox(uint64_t mpidr, uint64_t address)
 }
 
 /*******************************************************************************
- * Handler called when an affinity instance is about to be turned on. The
+ * Handler called when a power domain is about to be turned on. The
  * level and mpidr determine the affinity instance.
  ******************************************************************************/
-int32_t css_affinst_on(uint64_t mpidr,
+int32_t css_pwr_domain_on(uint64_t mpidr,
 			uint64_t sec_entrypoint,
-			uint32_t afflvl)
+			uint32_t pwrlvl)
 {
 	/*
-	 * SCP takes care of powering up higher affinity levels so we
+	 * SCP takes care of powering up parent power domains so we
 	 * only need to care about level 0
 	 */
-	assert(afflvl == MPIDR_AFFLVL0);
+	assert(pwrlvl == ARM_PWR_LVL0);
 
 	/*
 	 * Setup mailbox with address for CPU entrypoint when it next powers up
@@ -82,14 +82,14 @@ int32_t css_affinst_on(uint64_t mpidr,
 }
 
 /*******************************************************************************
- * Handler called when an affinity instance has just been powered on after
+ * Handler called when a power level has just been powered on after
  * being turned off earlier.
  ******************************************************************************/
-void css_affinst_on_finish(uint32_t afflvl)
+void css_pwr_domain_on_finish(uint32_t pwrlvl)
 {
 	unsigned long mpidr;
 
-	assert(afflvl <= MPIDR_AFFLVL1);
+	assert(pwrlvl <= ARM_PWR_LVL1);
 
 	/* Get the mpidr for this cpu */
 	mpidr = read_mpidr_el1();
@@ -98,7 +98,7 @@ void css_affinst_on_finish(uint32_t afflvl)
 	 * Perform the common cluster specific operations i.e enable coherency
 	 * if this cluster was off.
 	 */
-	if (afflvl != MPIDR_AFFLVL0)
+	if (pwrlvl != ARM_PWR_LVL0)
 		cci_enable_snoop_dvm_reqs(MPIDR_AFFLVL1_VAL(mpidr));
 
 	/* Enable the gic cpu interface */
@@ -114,10 +114,10 @@ void css_affinst_on_finish(uint32_t afflvl)
 /*******************************************************************************
  * Common function called while turning a cpu off or suspending it. It is called
  * from css_off() or css_suspend() when these functions in turn are called for
- * the highest affinity level which will be powered down. It performs the
- * actions common to the OFF and SUSPEND calls.
+ * power domain at the highest power level which will be powered down. It
+ * performs the actions common to the OFF and SUSPEND calls.
  ******************************************************************************/
-static void css_power_down_common(uint32_t afflvl)
+static void css_power_down_common(uint32_t pwrlvl)
 {
 	uint32_t cluster_state = scpi_power_on;
 
@@ -125,7 +125,7 @@ static void css_power_down_common(uint32_t afflvl)
 	arm_gic_cpuif_deactivate();
 
 	/* Cluster is to be turned off, so disable coherency */
-	if (afflvl > MPIDR_AFFLVL0) {
+	if (pwrlvl > ARM_PWR_LVL0) {
 		cci_disable_snoop_dvm_reqs(MPIDR_AFFLVL1_VAL(read_mpidr()));
 		cluster_state = scpi_power_off;
 	}
@@ -141,40 +141,40 @@ static void css_power_down_common(uint32_t afflvl)
 }
 
 /*******************************************************************************
- * Handler called when an affinity instance is about to be turned off.
+ * Handler called when a power domain is about to be turned off.
  ******************************************************************************/
-static void css_affinst_off(uint32_t afflvl)
+static void css_pwr_domain_off(uint32_t pwrlvl)
 {
-	assert(afflvl <= MPIDR_AFFLVL1);
+	assert(pwrlvl <= ARM_PWR_LVL1);
 
-	css_power_down_common(afflvl);
+	css_power_down_common(pwrlvl);
 }
 
 /*******************************************************************************
- * Handler called when an affinity instance is about to be suspended.
+ * Handler called when a power domain is about to be suspended.
  ******************************************************************************/
-static void css_affinst_suspend(uint64_t sec_entrypoint,
-				    uint32_t afflvl)
+static void css_pwr_domain_suspend(uint64_t sec_entrypoint,
+				    uint32_t pwrlvl)
 {
-	assert(afflvl <= MPIDR_AFFLVL1);
+	assert(pwrlvl <= ARM_PWR_LVL1);
 
 	/*
 	 * Setup mailbox with address for CPU entrypoint when it next powers up.
 	 */
 	css_program_mailbox(read_mpidr_el1(), sec_entrypoint);
 
-	css_power_down_common(afflvl);
+	css_power_down_common(pwrlvl);
 }
 
 /*******************************************************************************
- * Handler called when an affinity instance has just been powered on after
+ * Handler called when a power domain has just been powered on after
  * having been suspended earlier.
  * TODO: At the moment we reuse the on finisher and reinitialize the secure
  * context. Need to implement a separate suspend finisher.
  ******************************************************************************/
-static void css_affinst_suspend_finish(uint32_t afflvl)
+static void css_pwr_domain_suspend_finish(uint32_t pwrlvl)
 {
-	css_affinst_on_finish(afflvl);
+	css_pwr_domain_on_finish(pwrlvl);
 }
 
 /*******************************************************************************
@@ -213,9 +213,9 @@ static void __dead2 css_system_reset(void)
 }
 
 /*******************************************************************************
- * Handler called when an affinity instance is about to enter standby.
+ * Handler called when a power domain is about to enter standby.
  ******************************************************************************/
-void css_affinst_standby(unsigned int power_state)
+void css_pwr_domain_standby(unsigned int power_state)
 {
 	unsigned int scr;
 
@@ -237,12 +237,12 @@ void css_affinst_standby(unsigned int power_state)
  * Export the platform handlers to enable psci to invoke them
  ******************************************************************************/
 static const plat_pm_ops_t css_ops = {
-	.affinst_on		= css_affinst_on,
-	.affinst_on_finish	= css_affinst_on_finish,
-	.affinst_off		= css_affinst_off,
-	.affinst_standby	= css_affinst_standby,
-	.affinst_suspend	= css_affinst_suspend,
-	.affinst_suspend_finish	= css_affinst_suspend_finish,
+	.pwr_domain_on		= css_pwr_domain_on,
+	.pwr_domain_on_finish	= css_pwr_domain_on_finish,
+	.pwr_domain_off		= css_pwr_domain_off,
+	.pwr_domain_standby	= css_pwr_domain_standby,
+	.pwr_domain_suspend	= css_pwr_domain_suspend,
+	.pwr_domain_suspend_finish	= css_pwr_domain_suspend_finish,
 	.system_off		= css_system_off,
 	.system_reset		= css_system_reset,
 	.validate_power_state	= arm_validate_power_state

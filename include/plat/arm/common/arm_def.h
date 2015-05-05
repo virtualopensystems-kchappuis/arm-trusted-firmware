@@ -30,6 +30,7 @@
 #ifndef __ARM_DEF_H__
 #define __ARM_DEF_H__
 
+#include <arch.h>
 #include <common_def.h>
 #include <platform_def.h>
 #include <xlat_tables.h>
@@ -45,6 +46,13 @@
 #define ARM_CLUSTER_COUNT		2ull
 
 #define ARM_CACHE_WRITEBACK_SHIFT	6
+
+/*
+ * Macros mapping the MPIDR Affinity levels to ARM Platform Power levels. The
+ * power levels have a 1:1 mapping with the MPIDR affinity levels.
+ */
+#define ARM_PWR_LVL0		MPIDR_AFFLVL0
+#define ARM_PWR_LVL1		MPIDR_AFFLVL1
 
 /* Memory location options for TSP */
 #define ARM_TRUSTED_SRAM_ID		0
@@ -162,9 +170,9 @@
 
 #define ADDR_SPACE_SIZE			(1ull << 32)
 
-#define PLATFORM_NUM_AFFS		(ARM_CLUSTER_COUNT + \
+#define PLAT_NUM_PWR_DOMAINS		(ARM_CLUSTER_COUNT + \
 					 PLATFORM_CORE_COUNT)
-#define PLATFORM_MAX_AFFLVL		MPIDR_AFFLVL1
+#define PLAT_MAX_PWR_LVL		ARM_PWR_LVL1
 
 #define PLATFORM_CORE_COUNT		(PLAT_ARM_CLUSTER0_CORE_COUNT + \
 					 PLAT_ARM_CLUSTER1_CORE_COUNT)

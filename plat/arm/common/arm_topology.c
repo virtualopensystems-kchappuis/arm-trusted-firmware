@@ -36,27 +36,31 @@
  * Weak definitions use fixed topology. Strong definitions could make topology
  * configurable
  */
-#pragma weak plat_get_aff_count
-#pragma weak plat_get_aff_state
+#pragma weak plat_get_pwr_domain_count
+#pragma weak plat_get_pwr_domain_state
 #pragma weak plat_arm_topology_setup
 
 
-unsigned int plat_get_aff_count(unsigned int aff_lvl, unsigned long mpidr)
+unsigned int plat_get_pwr_domain_count(unsigned int pwr_lvl,
+						unsigned long mpidr)
 {
-	/* Report 1 (absent) instance at levels higher that the cluster level */
-	if (aff_lvl > MPIDR_AFFLVL1)
+	/* Report 1 (absent) power domain  at levels higher that the
+	   cluster level */
+	if (pwr_lvl > ARM_PWR_LVL1)
 		return 1;
 
-	if (aff_lvl == MPIDR_AFFLVL1)
+	if (pwr_lvl == ARM_PWR_LVL1)
 		return ARM_CLUSTER_COUNT;
 
 	return mpidr & 0x100 ? PLAT_ARM_CLUSTER1_CORE_COUNT :
 				PLAT_ARM_CLUSTER0_CORE_COUNT;
 }
 
-unsigned int plat_get_aff_state(unsigned int aff_lvl, unsigned long mpidr)
+unsigned int plat_get_pwr_domain_state(unsigned int pwr_lvl,
+		unsigned long mpidr)
 {
-	return aff_lvl <= MPIDR_AFFLVL1 ? PSCI_AFF_PRESENT : PSCI_AFF_ABSENT;
+	return pwr_lvl <= ARM_PWR_LVL1 ? PSCI_PWR_DOMAIN_PRESENT :
+						PSCI_PWR_DOMAIN_ABSENT;
 }
 
 void plat_arm_topology_setup(void)
