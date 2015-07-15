@@ -39,6 +39,7 @@ BL31_SOURCES		+=	bl31/bl31_main.c				\
 				bl31/aarch64/cpu_data.S				\
 				bl31/aarch64/runtime_exceptions.S		\
 				bl31/aarch64/crash_reporting.S			\
+				common/secure_timer.c					\
 				lib/cpus/aarch64/cpu_helpers.S			\
 				lib/locks/exclusive/spinlock.S			\
 				services/std_svc/std_svc_setup.c		\

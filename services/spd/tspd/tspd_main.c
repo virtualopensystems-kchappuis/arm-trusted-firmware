@@ -52,6 +52,7 @@
 #include <tsp.h>
 #include <uuid.h>
 #include "tspd_private.h"
+#include "secure_timer.h"
 
 /*******************************************************************************
  * Address of the entrypoint vector table in the Secure Payload. It is
@@ -90,12 +91,13 @@ uint64_t tspd_handle_sp_preemption(void *handle)
 
 	SMC_RET1(ns_cpu_context, SMC_PREEMPTED);
 }
+#if TSPD_ROUTE_FIQ_TO_EL3
 /*******************************************************************************
- * This function is the handler registered for S-EL1 interrupts by the TSPD. It
+ * This function is the handler registered for EL3 interrupts by the TSPD. It
  * validates the interrupt and upon success arranges entry into the TSP at
  * 'tsp_fiq_entry()' for handling the interrupt.
  ******************************************************************************/
-static uint64_t tspd_sel1_interrupt_handler(uint32_t id,
+static uint64_t tspd_el3_interrupt_handler(uint32_t id,
 					    uint32_t flags,
 					    void *handle,
 					    void *cookie)
@@ -115,6 +117,12 @@ static uint64_t tspd_sel1_interrupt_handler(uint32_t id,
 	/* Sanity check the pointer to this cpu's context */
 	mpidr = read_mpidr();
 	assert(handle == cm_get_context(NON_SECURE));
+
+	id = plat_ic_acknowledge_interrupt();
+	assert(id == TSP_IRQ_SEC_PHY_TIMER);
+	secure_timer_handler();
+	plat_ic_end_of_interrupt(id);
+
 
 	/* Save the non-secure context before entering the TSP */
 	cm_el1_sysregs_context_save(NON_SECURE);
@@ -160,6 +168,83 @@ static uint64_t tspd_sel1_interrupt_handler(uint32_t id,
 	 */
 	SMC_RET2(&tsp_ctx->cpu_ctx, TSP_HANDLE_FIQ_AND_RETURN, read_elr_el3());
 }
+#else
+/*******************************************************************************
+ * This function is the handler registered for S-EL1 interrupts by the TSPD. It
+ * validates the interrupt and upon success arranges entry into the TSP at
+ * 'tsp_fiq_entry()' for handling the interrupt.
+ ******************************************************************************/
+static uint64_t tspd_sel1_interrupt_handler(uint32_t id,
+					    uint32_t flags,
+					    void *handle,
+					    void *cookie)
+{
+	uint32_t linear_id;
+	uint64_t mpidr;
+	tsp_context_t *tsp_ctx;
+
+	/* Check the security state when the exception was generated */
+	assert(get_interrupt_src_ss(flags) == NON_SECURE);
+
+#if IMF_READ_INTERRUPT_ID
+	/* Check the security status of the interrupt */
+	assert(plat_ic_get_interrupt_type(id) == INTR_TYPE_S_EL1);
+#endif
+
+	/* Sanity check the pointer to this cpu's context */
+	mpidr = read_mpidr();
+	assert(handle == cm_get_context(NON_SECURE));
+
+	/* Save the non-secure context before entering the TSP */
+	cm_el1_sysregs_context_save(NON_SECURE);
+
+	/* Get a reference to this cpu's TSP context */
+	linear_id = platform_get_core_pos(mpidr);
+	tsp_ctx = &tspd_sp_context[linear_id];
+	assert(&tsp_ctx->cpu_ctx == cm_get_context(SECURE));
+
+	/*
+	 * Determine if the TSP was previously preempted. Its last known
+	 * context has to be preserved in this case.
+	 * The TSP should return control to the TSPD after handling this
+	 * FIQ. Preserve essential EL3 context to allow entry into the
+	 * TSP at the FIQ entry point using the 'cpu_context' structure.
+	 * There is no need to save the secure system register context
+	 * since the TSP is supposed to preserve it during S-EL1 interrupt
+	 * handling.
+	 */
+	if (get_std_smc_active_flag(tsp_ctx->state)) {
+		tsp_ctx->saved_spsr_el3 = SMC_GET_EL3(&tsp_ctx->cpu_ctx,
+						      CTX_SPSR_EL3);
+		tsp_ctx->saved_elr_el3 = SMC_GET_EL3(&tsp_ctx->cpu_ctx,
+						     CTX_ELR_EL3);
+#if TSPD_ROUTE_IRQ_TO_EL3
+		/*Need to save the previously interrupted secure context */
+		memcpy(&tsp_ctx->sp_ctx, &tsp_ctx->cpu_ctx, TSPD_SP_CTX_SIZE);
+#endif
+
+#if TSPD_ROUTE_FIQ_TO_EL3
+		/*Need to save the previously interrupted secure context */
+		memcpy(&tsp_ctx->sp_ctx_2, &tsp_ctx->cpu_ctx, TSPD_SP_CTX_SIZE);
+#endif
+	}
+
+	cm_el1_sysregs_context_restore(SECURE);
+	cm_set_elr_spsr_el3(SECURE, (uint64_t) &tsp_vectors->fiq_entry,
+		    SPSR_64(MODE_EL1, MODE_SP_ELX, DISABLE_ALL_EXCEPTIONS));
+
+	cm_set_next_eret_context(SECURE);
+
+	/*
+	 * Tell the TSP that it has to handle an FIQ synchronously. Also the
+	 * instruction in normal world where the interrupt was generated is
+	 * passed for debugging purposes. It is safe to retrieve this address
+	 * from ELR_EL3 as the secure context will not take effect until
+	 * el3_exit().
+	 */
+	SMC_RET2(&tsp_ctx->cpu_ctx, TSP_HANDLE_FIQ_AND_RETURN, read_elr_el3());
+}
+#endif
 
 #if TSPD_ROUTE_IRQ_TO_EL3
 /*******************************************************************************
@@ -354,6 +439,15 @@ uint64_t tspd_smc_handler(uint32_t smc_fid,
 			memcpy(&tsp_ctx->cpu_ctx, &tsp_ctx->sp_ctx,
 				TSPD_SP_CTX_SIZE);
 #endif
+
+#if TSPD_ROUTE_FIQ_TO_EL3
+			/*
+			 * Need to restore the previously interrupted
+			 * secure context.
+			 */
+			memcpy(&tsp_ctx->cpu_ctx, &tsp_ctx->sp_ctx_2,
+				TSPD_SP_CTX_SIZE);
+#endif
 		}
 
 		/* Get a reference to the non-secure context */
@@ -423,6 +517,26 @@ uint64_t tspd_smc_handler(uint32_t smc_fid,
 			 */
 			psci_register_spd_pm_hook(&tspd_pm);
 
+#if TSPD_ROUTE_FIQ_TO_EL3
+			/*
+			 * Register an interrupt handler for EL3 interrupts when
+			 * generated during code executing in secure state are
+			 * routed to EL3.
+			 */
+			flags = INTR_SEL1_VALID_RM1;
+			set_interrupt_rm_flag(flags, SECURE);
+			rc = register_interrupt_type_handler(INTR_TYPE_EL3,
+						tspd_el3_interrupt_handler,
+						flags);
+			if (rc)
+				panic();
+
+			/*
+			 * Disable the interrupt Secure locally since it will be enabled globally
+			 * within cm_init_context.
+			 */
+			disable_intr_rm_local(INTR_TYPE_EL3, SECURE);
+#else
 			/*
 			 * Register an interrupt handler for S-EL1 interrupts
 			 * when generated during code executing in the
@@ -435,6 +549,7 @@ uint64_t tspd_smc_handler(uint32_t smc_fid,
 						flags);
 			if (rc)
 				panic();
+#endif
 
 #if TSPD_ROUTE_IRQ_TO_EL3
 			/*
@@ -582,6 +697,14 @@ uint64_t tspd_smc_handler(uint32_t smc_fid,
 				 */
 				enable_intr_rm_local(INTR_TYPE_NS, SECURE);
 #endif
+
+#if TSPD_ROUTE_FIQ_TO_EL3
+				/*
+				 * Enable the routing of Secure interrupts to EL3
+				 * during STD SMC processing on this core.
+				 */
+				enable_intr_rm_local(INTR_TYPE_EL3, SECURE);
+#endif
 			}
 
 			cm_el1_sysregs_context_restore(SECURE);
@@ -613,6 +736,15 @@ uint64_t tspd_smc_handler(uint32_t smc_fid,
 				 * core.
 				 */
 				disable_intr_rm_local(INTR_TYPE_NS, SECURE);
+#endif
+
+#if TSPD_ROUTE_FIQ_TO_EL3
+				/*
+				 * Disable the routing of Secure interrupts to EL3
+				 * after STD SMC processing is finished on this
+				 * core.
+				 */
+				disable_intr_rm_local(INTR_TYPE_EL3, SECURE);
 #endif
 			}
 
@@ -657,6 +789,13 @@ uint64_t tspd_smc_handler(uint32_t smc_fid,
 		enable_intr_rm_local(INTR_TYPE_NS, SECURE);
 #endif
 
+#if TSPD_ROUTE_FIQ_TO_EL3
+		/*
+		 * Enable the routing of Secure interrupts to EL3 during resumption
+		 * of STD SMC call on this core.
+		 */
+		enable_intr_rm_local(INTR_TYPE_EL3, SECURE);
+#endif
 
 
 		/* We just need to return to the preempted point in

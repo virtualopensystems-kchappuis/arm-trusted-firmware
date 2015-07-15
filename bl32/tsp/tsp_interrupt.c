@@ -87,10 +87,6 @@ int32_t tsp_fiq_handler(void)
 	 */
 	id = plat_ic_get_pending_interrupt_id();
 
-	/* TSP can only handle the secure physical timer interrupt */
-	if (id != TSP_IRQ_SEC_PHY_TIMER)
-		return TSP_EL3_FIQ;
-
 	/*
 	 * Handle the interrupt. Also sanity check if it has been preempted by
 	 * another secure interrupt through an assertion.
