@@ -119,10 +119,6 @@ static uint64_t tspd_el3_interrupt_handler(uint32_t id,
 	assert(handle == cm_get_context(NON_SECURE));
 
 	id = plat_ic_acknowledge_interrupt();
-	assert(id == TSP_IRQ_SEC_PHY_TIMER);
-	secure_timer_handler();
-	plat_ic_end_of_interrupt(id);
-
 
 	/* Save the non-secure context before entering the TSP */
 	cm_el1_sysregs_context_save(NON_SECURE);
@@ -166,7 +162,7 @@ static uint64_t tspd_el3_interrupt_handler(uint32_t id,
 	 * from ELR_EL3 as the secure context will not take effect until
 	 * el3_exit().
 	 */
-	SMC_RET2(&tsp_ctx->cpu_ctx, TSP_HANDLE_FIQ_AND_RETURN, read_elr_el3());
+	SMC_RET3(&tsp_ctx->cpu_ctx, TSP_HANDLE_FIQ_AND_RETURN, read_elr_el3(), id);
 }
 #else
 /*******************************************************************************
@@ -194,6 +190,8 @@ static uint64_t tspd_sel1_interrupt_handler(uint32_t id,
 	/* Sanity check the pointer to this cpu's context */
 	mpidr = read_mpidr();
 	assert(handle == cm_get_context(NON_SECURE));
+
+	id = plat_ic_acknowledge_interrupt();
 
 	/* Save the non-secure context before entering the TSP */
 	cm_el1_sysregs_context_save(NON_SECURE);
@@ -231,7 +229,7 @@ static uint64_t tspd_sel1_interrupt_handler(uint32_t id,
 
 	cm_el1_sysregs_context_restore(SECURE);
 	cm_set_elr_spsr_el3(SECURE, (uint64_t) &tsp_vectors->fiq_entry,
-		    SPSR_64(MODE_EL1, MODE_SP_ELX, DISABLE_ALL_EXCEPTIONS));
+		    SPSR_64(MODE_EL1, MODE_SP_ELX, (DAIF_IRQ_BIT | DAIF_ABT_BIT | DAIF_DBG_BIT)));
 
 	cm_set_next_eret_context(SECURE);
 
@@ -242,7 +240,7 @@ static uint64_t tspd_sel1_interrupt_handler(uint32_t id,
 	 * from ELR_EL3 as the secure context will not take effect until
 	 * el3_exit().
 	 */
-	SMC_RET2(&tsp_ctx->cpu_ctx, TSP_HANDLE_FIQ_AND_RETURN, read_elr_el3());
+	SMC_RET3(&tsp_ctx->cpu_ctx, TSP_HANDLE_FIQ_AND_RETURN, read_elr_el3(), id);
 }
 #endif
 

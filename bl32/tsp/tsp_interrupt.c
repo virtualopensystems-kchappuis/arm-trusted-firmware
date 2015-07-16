@@ -47,7 +47,9 @@
  * The 'elr_el3' parameter contains the address of the instruction in normal
  * world where this FIQ was generated.
  ******************************************************************************/
-void tsp_update_sync_fiq_stats(uint32_t type, uint64_t elr_el3)
+const uint32_t tsp_update_sync_fiq_stats(uint32_t type,
+		uint64_t elr_el3,
+		const uint32_t id)
 {
 	uint64_t mpidr = read_mpidr();
 	uint32_t linear_id = platform_get_core_pos(mpidr);
@@ -66,6 +68,7 @@ void tsp_update_sync_fiq_stats(uint32_t type, uint64_t elr_el3)
 		tsp_stats[linear_id].sync_fiq_ret_count);
 	spin_unlock(&console_lock);
 #endif
+	return id;
 }
 
 /*******************************************************************************
@@ -75,24 +78,36 @@ void tsp_update_sync_fiq_stats(uint32_t type, uint64_t elr_el3)
  * architecture version in v2.0 and the secure physical timer interrupt is the
  * only S-EL1 interrupt that it needs to handle.
  ******************************************************************************/
-int32_t tsp_fiq_handler(void)
+int32_t tsp_fiq_handler(uint32_t id)
 {
 	uint64_t mpidr = read_mpidr();
-	uint32_t linear_id = platform_get_core_pos(mpidr), id;
+	uint32_t linear_id = platform_get_core_pos(mpidr);
 
-	/*
-	 * Get the highest priority pending interrupt id and see if it is the
-	 * secure physical generic timer interrupt in which case, handle it.
-	 * Otherwise throw this interrupt at the EL3 firmware.
-	 */
-	id = plat_ic_get_pending_interrupt_id();
+	/* In case the interrupt is serviced in */
+	if (id == TSP_SEL1_EXCEPTION) {
+		/*
+		 * Get the highest priority pending interrupt id and see if it is the
+		 * secure physical generic timer interrupt in which case, handle it.
+		 * Otherwise throw this interrupt at the EL3 firmware.
+		 */
+		id = plat_ic_get_pending_interrupt_id();
 
-	/*
-	 * Handle the interrupt. Also sanity check if it has been preempted by
-	 * another secure interrupt through an assertion.
-	 */
-	id = plat_ic_acknowledge_interrupt();
-	assert(id == TSP_IRQ_SEC_PHY_TIMER);
+		/* TSP can only handle the secure physical timer interrupt */
+		if (id != TSP_IRQ_SEC_PHY_TIMER)
+			return TSP_EL3_FIQ;
+
+		/*
+		 * Handle the interrupt. Also sanity check if it has been preempted by
+		 * another secure interrupt through an assertion.
+		 */
+		id = plat_ic_acknowledge_interrupt();
+		assert(id == TSP_IRQ_SEC_PHY_TIMER);
+	} else {
+		/* TSP can only handle the secure physical timer interrupt */
+		if (id != TSP_IRQ_SEC_PHY_TIMER)
+			return TSP_EL3_FIQ;
+	}
+
 	tsp_generic_timer_handler();
 	plat_ic_end_of_interrupt(id);
 

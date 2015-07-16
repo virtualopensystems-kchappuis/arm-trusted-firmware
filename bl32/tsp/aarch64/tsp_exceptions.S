@@ -32,7 +32,7 @@
 #include <arch.h>
 #include <tsp.h>
 #include <asm_macros.S>
-
+#include "../tsp_private.h"
 
 	/* ----------------------------------------------------
 	 * The caller-saved registers x0-x18 and LR are saved
@@ -139,6 +139,7 @@ fiq_sp_elx:
 	msr	daifclr, #DAIF_ABT_BIT
 
 	save_caller_regs_and_lr
+	mov x0, #TSP_SEL1_EXCEPTION
 	bl	tsp_fiq_handler
 	cbz	x0, fiq_sp_elx_done
 

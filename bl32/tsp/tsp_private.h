@@ -43,6 +43,7 @@
 #define TSP_ARG7		0x38
 #define TSP_ARGS_END		0x40
 
+#define TSP_SEL1_EXCEPTION	0xFFFF0000
 
 #ifndef __ASSEMBLY__
 
@@ -116,7 +117,9 @@ void tsp_generic_timer_save(void);
 void tsp_generic_timer_restore(void);
 
 /* FIQ management functions */
-void tsp_update_sync_fiq_stats(uint32_t type, uint64_t elr_el3);
+const uint32_t tsp_update_sync_fiq_stats(uint32_t type,
+		uint64_t elr_el3,
+		const uint32_t id);
 
 
 /* Data structure to keep track of TSP statistics */
